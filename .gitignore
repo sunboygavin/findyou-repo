@@ -1,0 +1,8 @@
+venv/
+__pycache__/
+*.pyc
+app.log
+app.pid
+.DS_Store
+The AI workspace that works for you. _ Notion.html
+The AI workspace that works for you. _ Notion_files/
