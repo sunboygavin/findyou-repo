@@ -305,6 +305,7 @@ footer .copyright{font-size:13px;color:var(--text3)}
   .section-title{font-size:32px}
 }
 </style>
+<link rel="stylesheet" href="/static/css/chat.css">
 </head>
 <body>
 
@@ -320,13 +321,14 @@ footer .copyright{font-size:13px;color:var(--text3)}
 <a href="#contact">联系我们</a>
 </div>
 <button class="nav-toggle" aria-label="菜单">☰</button>
-<div class="nav-right">
+<div class="nav-right" id="nav-right">
 {% if user %}
-<div class="user-badge">{{ user[0]|upper }}</div>
-<a href="/logout" class="btn-pill btn-ghost" style="color:var(--red)">退出</a>
+<span class="nav-username">👤 {{ user }}</span>
+<button class="btn-pill btn-outline" onclick="showHistory()">对话记录</button>
+<a href="/logout" class="btn-pill btn-dark">退出</a>
 {% else %}
-<button class="btn-pill btn-ghost" onclick="openLogin()">登录</button>
-<button class="btn-pill btn-primary" onclick="openLogin()">免费试用</button>
+<button class="btn-pill btn-outline" onclick="showAuthModal('login')">登录</button>
+<button class="btn-pill btn-primary" onclick="showAuthModal('register')">免费注册</button>
 {% endif %}
 </div>
 </div>
@@ -376,7 +378,7 @@ footer .copyright{font-size:13px;color:var(--text3)}
 <p class="section-desc anim">每位数字员工拥有专属技能、AI 模型与独特性格 — 点击卡片开始对话</p>
 <div class="gallery">
 
-<div class="emp-card anim" onclick="openChat(0)">
+<div class="emp-card anim" onclick="openChat('ada')">
 <div class="emp-cover" style="background:linear-gradient(135deg,#fdebd0,#fadbd8)">
 <div class="emp-avatar"><svg viewBox="0 0 120 120" xmlns="http://www.w3.org/2000/svg">
 <rect width="120" height="120" rx="60" fill="#fef5e7"/>
@@ -402,10 +404,10 @@ footer .copyright{font-size:13px;color:var(--text3)}
 <div class="emp-skills">发票核验 · 报销审核 · 自动对账 · 税务申报</div>
 <div class="emp-model">通义千问</div>
 </div>
-<button class="emp-chat-btn" onclick="event.stopPropagation();openChat(0)">开始对话 →</button>
+<button class="emp-chat-btn" onclick="event.stopPropagation();openChat('ada')">开始对话 →</button>
 </div>
 
-<div class="emp-card anim anim-delay-1" onclick="openChat(1)">
+<div class="emp-card anim anim-delay-1" onclick="openChat('max')">
 <div class="emp-cover" style="background:linear-gradient(135deg,#d4efdf,#d6eaf8)">
 <div class="emp-avatar"><svg viewBox="0 0 120 120" xmlns="http://www.w3.org/2000/svg">
 <rect width="120" height="120" rx="60" fill="#e8f8f5"/>
@@ -431,10 +433,10 @@ footer .copyright{font-size:13px;color:var(--text3)}
 <div class="emp-skills">数据清洗 · 可视化图表 · 趋势预测 · 自动报表</div>
 <div class="emp-model">Claude Opus</div>
 </div>
-<button class="emp-chat-btn" onclick="event.stopPropagation();openChat(1)">开始对话 →</button>
+<button class="emp-chat-btn" onclick="event.stopPropagation();openChat('max')">开始对话 →</button>
 </div>
 
-<div class="emp-card anim anim-delay-2" onclick="openChat(2)">
+<div class="emp-card anim anim-delay-2" onclick="openChat('shield')">
 <div class="emp-cover" style="background:linear-gradient(135deg,#e8daef,#d5f5e3)">
 <div class="emp-avatar"><svg viewBox="0 0 120 120" xmlns="http://www.w3.org/2000/svg">
 <rect width="120" height="120" rx="60" fill="#f0e6f6"/>
@@ -457,10 +459,10 @@ footer .copyright{font-size:13px;color:var(--text3)}
 <div class="emp-skills">异常检测 · 日志分析 · 漏洞扫描 · 应急响应</div>
 <div class="emp-model">安全大模型</div>
 </div>
-<button class="emp-chat-btn" onclick="event.stopPropagation();openChat(2)">开始对话 →</button>
+<button class="emp-chat-btn" onclick="event.stopPropagation();openChat('shield')">开始对话 →</button>
 </div>
 
-<div class="emp-card anim" onclick="openChat(3)">
+<div class="emp-card anim" onclick="openChat('eva')">
 <div class="emp-cover" style="background:linear-gradient(135deg,#fef9e7,#fdecc8)">
 <div class="emp-avatar"><svg viewBox="0 0 120 120" xmlns="http://www.w3.org/2000/svg">
 <rect width="120" height="120" rx="60" fill="#fef9e7"/>
@@ -487,10 +489,10 @@ footer .copyright{font-size:13px;color:var(--text3)}
 <div class="emp-skills">文案创作 · SEO 优化 · 多平台适配 · 品牌策划</div>
 <div class="emp-model">GPT-4</div>
 </div>
-<button class="emp-chat-btn" onclick="event.stopPropagation();openChat(3)">开始对话 →</button>
+<button class="emp-chat-btn" onclick="event.stopPropagation();openChat('eva')">开始对话 →</button>
 </div>
 
-<div class="emp-card anim anim-delay-1" onclick="openChat(4)">
+<div class="emp-card anim anim-delay-1" onclick="openChat('kai')">
 <div class="emp-cover" style="background:linear-gradient(135deg,#fdedec,#f5e0e9)">
 <div class="emp-avatar"><svg viewBox="0 0 120 120" xmlns="http://www.w3.org/2000/svg">
 <rect width="120" height="120" rx="60" fill="#fdedec"/>
@@ -517,10 +519,10 @@ footer .copyright{font-size:13px;color:var(--text3)}
 <div class="emp-skills">会议安排 · 日程管理 · 文档整理 · 行政采购</div>
 <div class="emp-model">文心一言</div>
 </div>
-<button class="emp-chat-btn" onclick="event.stopPropagation();openChat(4)">开始对话 →</button>
+<button class="emp-chat-btn" onclick="event.stopPropagation();openChat('kai')">开始对话 →</button>
 </div>
 
-<div class="emp-card anim anim-delay-2" onclick="openChat(5)">
+<div class="emp-card anim anim-delay-2" onclick="openChat('nova')">
 <div class="emp-cover" style="background:linear-gradient(135deg,#ebf5fb,#d4efdf)">
 <div class="emp-avatar"><svg viewBox="0 0 120 120" xmlns="http://www.w3.org/2000/svg">
 <rect width="120" height="120" rx="60" fill="#eaf2f8"/>
@@ -546,10 +548,10 @@ footer .copyright{font-size:13px;color:var(--text3)}
 <div class="emp-skills">客户管理 · 销售漏斗 · 竞品分析 · 话术生成</div>
 <div class="emp-model">DeepSeek</div>
 </div>
-<button class="emp-chat-btn" onclick="event.stopPropagation();openChat(5)">开始对话 →</button>
+<button class="emp-chat-btn" onclick="event.stopPropagation();openChat('nova')">开始对话 →</button>
 </div>
 
-<div class="emp-card anim" onclick="openChat(6)">
+<div class="emp-card anim" onclick="openChat('lex')">
 <div class="emp-cover" style="background:linear-gradient(135deg,#e8e8e8,#d5d8dc)">
 <div class="emp-avatar"><svg viewBox="0 0 120 120" xmlns="http://www.w3.org/2000/svg">
 <rect width="120" height="120" rx="60" fill="#f2f3f4"/>
@@ -571,10 +573,10 @@ footer .copyright{font-size:13px;color:var(--text3)}
 <div class="emp-skills">合同审查 · 合规检查 · 风险评估 · 法规追踪</div>
 <div class="emp-model">Claude Opus</div>
 </div>
-<button class="emp-chat-btn" onclick="event.stopPropagation();openChat(6)">开始对话 →</button>
+<button class="emp-chat-btn" onclick="event.stopPropagation();openChat('lex')">开始对话 →</button>
 </div>
 
-<div class="emp-card anim anim-delay-1" onclick="openChat(7)">
+<div class="emp-card anim anim-delay-1" onclick="openChat('mia')">
 <div class="emp-cover" style="background:linear-gradient(135deg,#fdebd0,#d5f5e3)">
 <div class="emp-avatar"><svg viewBox="0 0 120 120" xmlns="http://www.w3.org/2000/svg">
 <rect width="120" height="120" rx="60" fill="#fef9e7"/>
@@ -598,7 +600,7 @@ footer .copyright{font-size:13px;color:var(--text3)}
 <div class="emp-skills">简历筛选 · 面试安排 · 员工关怀 · 考勤薪资</div>
 <div class="emp-model">GPT-4</div>
 </div>
-<button class="emp-chat-btn" onclick="event.stopPropagation();openChat(7)">开始对话 →</button>
+<button class="emp-chat-btn" onclick="event.stopPropagation();openChat('mia')">开始对话 →</button>
 </div>
 
 </div>
@@ -1169,7 +1171,10 @@ document.querySelector('.nav-toggle')&&document.querySelector('.nav-toggle').add
   navOpen=!navOpen;
   links.style.display=navOpen?'flex':'none';
 });
-</script>
 
+// Hero buttons → auth
+function openLogin(){ showAuthModal('login'); }
+</script>
+<script src="/static/js/chat.js"></script>
 </body>
 </html>
