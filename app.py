@@ -2,7 +2,7 @@ from flask import Flask, render_template, request, redirect, url_for, session, j
 import os
 
 app = Flask(__name__)
-app.secret_key = os.urandom(24).hex()
+app.secret_key = os.environ.get('SECRET_KEY', 'findyou-dev-secret-change-in-production-2026')
 
 # 默认账号
 USERS = {
