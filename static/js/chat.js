@@ -194,7 +194,7 @@ function openChat(employeeType) {
       <div class="chat-messages" id="chat-messages">
         <div class="msg msg-ai">
           <span class="msg-avatar">${emp.emoji}</span>
-          <div class="msg-bubble">${emp.intro}</div>
+          <div class="msg-content"><div class="msg-bubble">${emp.intro}</div></div>
         </div>
       </div>
       <div class="chat-input-area">
@@ -303,10 +303,12 @@ function appendMessage(role, html, id) {
   const emp = EMPLOYEES[empType] || {};
   const div = document.createElement('div');
   div.className = 'msg msg-' + role;
+  var now = new Date();
+  var timeStr = now.getHours().toString().padStart(2,'0') + ':' + now.getMinutes().toString().padStart(2,'0');
   if (role === 'ai') {
-    div.innerHTML = `<span class="msg-avatar">${emp.emoji || '🤖'}</span><div class="msg-bubble" ${id ? `id="${id}"` : ''}>${html}</div>`;
+    div.innerHTML = `<span class="msg-avatar">${emp.emoji || '🤖'}</span><div class="msg-content"><div class="msg-bubble" ${id ? `id="${id}"` : ''}>${html}</div><span class="msg-time">${timeStr}</span></div>`;
   } else {
-    div.innerHTML = `<div class="msg-bubble">${escHtml(html)}</div><span class="msg-avatar">👤</span>`;
+    div.innerHTML = `<div class="msg-content"><div class="msg-bubble">${escHtml(html)}</div><span class="msg-time">${timeStr}</span></div><span class="msg-avatar">👤</span>`;
   }
   container.appendChild(div);
   scrollToBottom();

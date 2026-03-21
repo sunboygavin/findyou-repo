@@ -54,7 +54,8 @@ nav .nav-right{display:flex;align-items:center;gap:12px}
 .user-badge{width:32px;height:32px;border-radius:50%;background:linear-gradient(135deg,var(--blue),var(--purple));color:#fff;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:600}
 
 /* === HERO === */
-.hero{min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:120px 24px 80px;background:linear-gradient(180deg,#fbfbfd 0%,#f5f5f7 100%);position:relative;overflow:hidden}
+@keyframes heroGrad{0%{background-position:0% 50%}50%{background-position:100% 50%}100%{background-position:0% 50%}}
+.hero{min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:120px 24px 80px;background:linear-gradient(-45deg,#fbfbfd,#e8f0ff,#f5f5f7,#eef6ff);background-size:400% 400%;animation:heroGrad 12s ease infinite;position:relative;overflow:hidden}
 .hero::before{content:'';position:absolute;top:-200px;left:50%;transform:translateX(-50%);width:800px;height:800px;background:radial-gradient(circle,rgba(0,113,227,0.06) 0%,transparent 70%);pointer-events:none}
 .hero-badge{display:inline-flex;align-items:center;gap:6px;padding:6px 16px;background:rgba(0,113,227,0.08);color:var(--blue);font-size:13px;font-weight:500;border-radius:980px;margin-bottom:24px}
 .hero-badge .dot{width:6px;height:6px;border-radius:50%;background:var(--green);animation:pulse 2s infinite}
@@ -93,7 +94,7 @@ nav .nav-right{display:flex;align-items:center;gap:12px}
 /* === EMPLOYEE GALLERY === */
 .gallery{display:grid;grid-template-columns:repeat(3,1fr);gap:20px}
 .emp-card{border-radius:var(--radius-lg);overflow:hidden;background:var(--bg);border:1px solid var(--border);cursor:pointer;transition:all .3s}
-.emp-card:hover{box-shadow:var(--shadow-lg);transform:translateY(-4px)}
+.emp-card:hover{box-shadow:0 16px 48px rgba(0,0,0,0.14),0 0 0 1px rgba(0,113,227,0.1);transform:translateY(-6px)}
 .emp-cover{height:160px;display:flex;align-items:center;justify-content:center;position:relative}
 .emp-avatar{width:100px;height:100px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:#fff;box-shadow:0 4px 16px rgba(0,0,0,0.12);border:3px solid #fff;overflow:hidden}
 .emp-avatar svg{width:100%;height:100%}
@@ -107,7 +108,11 @@ nav .nav-right{display:flex;align-items:center;gap:12px}
 .emp-model::before{content:'';width:6px;height:6px;border-radius:50%;background:var(--green)}
 .emp-chat-btn{display:block;width:100%;padding:10px;text-align:center;font-size:13px;font-weight:500;color:var(--blue);background:rgba(0,113,227,0.04);border:none;border-top:1px solid var(--border);cursor:pointer;font-family:var(--font);transition:background .2s}
 .emp-chat-btn:hover{background:rgba(0,113,227,0.08)}
-@media(max-width:768px){.gallery{grid-template-columns:1fr}}
+@media(max-width:768px){
+  .gallery{display:flex;overflow-x:auto;scroll-snap-type:x mandatory;-webkit-overflow-scrolling:touch;gap:16px;padding-bottom:12px;scrollbar-width:none;-ms-overflow-style:none}
+  .gallery::-webkit-scrollbar{display:none}
+  .gallery .emp-card{flex:0 0 85vw;max-width:320px;scroll-snap-align:start}
+}
 
 /* Tag colors */
 .t-red{background:#fff0f0;color:#ff3b30}.t-orange{background:#fff5eb;color:#ff9500}
@@ -198,7 +203,7 @@ nav .nav-right{display:flex;align-items:center;gap:12px}
 .price-card{border:1px solid var(--border);border-radius:var(--radius-lg);padding:32px 28px;position:relative;transition:all .3s;background:var(--bg)}
 .price-card:hover{box-shadow:var(--shadow)}
 .price-card.featured{border-color:var(--blue);box-shadow:0 0 0 1px var(--blue)}
-.price-card.featured::after{content:'推荐';position:absolute;top:-12px;right:16px;background:var(--blue);color:#fff;font-size:12px;padding:4px 12px;border-radius:980px;font-weight:500}
+.price-card.featured::after{content:'🌟 最受欢迎';position:absolute;top:-14px;left:50%;transform:translateX(-50%);background:linear-gradient(135deg,#0071e3,#af52de);color:#fff;font-size:12px;padding:5px 16px;border-radius:980px;font-weight:600;white-space:nowrap;box-shadow:0 2px 8px rgba(0,113,227,0.3)}
 .price-card h4{font-size:18px;font-weight:600;margin-bottom:12px}
 .price-card .price-num{font-size:36px;font-weight:700;letter-spacing:-0.02em}
 .price-card .price-num small{font-size:15px;font-weight:400;color:var(--text2)}
@@ -224,8 +229,8 @@ nav .nav-right{display:flex;align-items:center;gap:12px}
 .faq-q{padding:20px 0;cursor:pointer;font-size:17px;font-weight:500;display:flex;align-items:center;justify-content:space-between;gap:16px;user-select:none}
 .faq-q::after{content:'+';font-size:24px;color:var(--text3);transition:transform .3s;flex-shrink:0}
 .faq-item.open .faq-q::after{transform:rotate(45deg)}
-.faq-a{max-height:0;overflow:hidden;transition:max-height .4s ease;font-size:15px;color:var(--text2);line-height:1.7}
-.faq-item.open .faq-a{max-height:300px;padding-bottom:20px}
+.faq-a{max-height:0;overflow:hidden;opacity:0;transition:max-height .4s ease,opacity .3s ease;font-size:15px;color:var(--text2);line-height:1.7}
+.faq-item.open .faq-a{max-height:300px;padding-bottom:20px;opacity:1}
 
 /* === CONTACT === */
 .contact-cards{display:grid;grid-template-columns:repeat(3,1fr);gap:20px;margin-bottom:40px}
@@ -303,6 +308,13 @@ footer .copyright{font-size:13px;color:var(--text3)}
   .hero h1{font-size:40px}
   .hero .subtitle{font-size:17px}
   .section-title{font-size:32px}
+}
+@media(max-width:768px){
+  /* Touch targets ≥ 44px */
+  .btn-pill{min-height:44px}
+  .emp-chat-btn{min-height:48px;font-size:15px}
+  .ws-chip{min-height:40px;display:flex;align-items:center}
+  .price-tab{min-height:40px}
 }
 </style>
 <link rel="stylesheet" href="/static/css/chat.css">
@@ -903,6 +915,11 @@ footer .copyright{font-size:13px;color:var(--text3)}
 <!-- TOAST -->
 <div class="toast" id="toast"></div>
 
+<!-- Floating CTA (mobile only) -->
+<div id="float-cta" style="display:none;position:fixed;bottom:0;left:0;right:0;z-index:150;padding:12px 20px 20px;background:linear-gradient(0deg,rgba(255,255,255,0.98) 0%,rgba(255,255,255,0) 100%);pointer-events:none;">
+  <button onclick="openLogin()" style="width:100%;padding:14px;background:linear-gradient(135deg,#0071e3,#af52de);color:#fff;border:none;border-radius:14px;font-size:17px;font-weight:600;font-family:inherit;cursor:pointer;box-shadow:0 4px 20px rgba(0,113,227,0.35);pointer-events:all;letter-spacing:-0.01em;">立即免费体验 →</button>
+</div>
+
 <script>
 // Employee data
 var obs=new IntersectionObserver(function(es){es.forEach(function(e){if(e.isIntersecting)e.target.classList.add('vis')})},{threshold:0.1});
@@ -918,11 +935,31 @@ var navOpen=false;
 document.querySelector('.nav-toggle')&&document.querySelector('.nav-toggle').addEventListener('click',function(){
   var links=document.querySelector('.nav-links');
   navOpen=!navOpen;
-  links.style.display=navOpen?'flex':'none';
+  if(navOpen){
+    links.style.cssText='display:flex!important;position:fixed;top:48px;left:0;right:0;background:rgba(255,255,255,0.98);backdrop-filter:blur(20px);flex-direction:column;padding:16px;border-bottom:1px solid rgba(0,0,0,0.08);z-index:99;box-shadow:0 8px 24px rgba(0,0,0,0.08);gap:16px;';
+    document.querySelector('.nav-toggle').textContent='✕';
+  } else {
+    links.style.cssText='display:none';
+    document.querySelector('.nav-toggle').textContent='☰';
+  }
 });
 
 // Hero buttons → auth
 function openLogin(){ showAuthModal('login'); }
+
+// Floating CTA: show on mobile only after scrolling past hero
+function updateFloatCTA() {
+  var btn = document.getElementById('float-cta');
+  if (!btn) return;
+  if (window.innerWidth <= 768 && window.scrollY > 400) {
+    btn.style.display = 'block';
+  } else {
+    btn.style.display = 'none';
+  }
+}
+window.addEventListener('scroll', updateFloatCTA, {passive:true});
+window.addEventListener('resize', updateFloatCTA);
+updateFloatCTA();
 </script>
 <script src="/static/js/chat.js"></script>
 </body>
