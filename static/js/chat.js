@@ -13,6 +13,49 @@ const State = {
   streaming: false,
 };
 
+// ─── Typewriter Queue ─────────────────────────────────────────────────────────
+const TypeWriter = {
+  queue: '',
+  timer: null,
+  targetId: null,
+  fullAccum: '',
+  speed: 18, // ms per char
+  start(id) {
+    this.queue = '';
+    this.fullAccum = '';
+    this.targetId = id;
+    this.timer = null;
+  },
+  push(text) {
+    this.queue += text;
+    if (!this.timer) this._tick();
+  },
+  _tick() {
+    if (!this.queue.length) { this.timer = null; return; }
+    const ch = this.queue[0];
+    this.queue = this.queue.slice(1);
+    this.fullAccum += ch;
+    const el = document.getElementById(this.targetId);
+    if (el) {
+      el.innerHTML = formatText(this.fullAccum) + '<span class="typing-cursor"></span>';
+      scrollToBottom();
+    }
+    this.timer = setTimeout(() => this._tick(), this.speed);
+  },
+  finish() {
+    // flush remaining
+    if (this.timer) clearTimeout(this.timer);
+    this.timer = null;
+    if (this.queue.length) {
+      this.fullAccum += this.queue;
+      this.queue = '';
+    }
+    const el = document.getElementById(this.targetId);
+    if (el) el.innerHTML = formatText(this.fullAccum);
+    return this.fullAccum;
+  }
+};
+
 function saveAuth(token, user) {
   State.token = token;
   State.user = user;
@@ -236,6 +279,7 @@ async function sendMessage() {
   // 创建AI回复气泡（带光标）
   const aiMsgId = 'ai-msg-' + Date.now();
   appendMessage('ai', '<span class="typing-cursor"></span>', aiMsgId);
+  TypeWriter.start(aiMsgId);
 
   State.streaming = true;
   document.getElementById('send-btn').disabled = true;
@@ -259,7 +303,6 @@ async function sendMessage() {
 
     const reader = res.body.getReader();
     const decoder = new TextDecoder();
-    const bubbleEl = document.getElementById(aiMsgId);
 
     while (true) {
       const { done, value } = await reader.read();
@@ -272,14 +315,14 @@ async function sendMessage() {
           const data = JSON.parse(line.slice(6));
           if (data.text) {
             fullText += data.text;
-            if (bubbleEl) bubbleEl.innerHTML = formatText(fullText) + '<span class="typing-cursor"></span>';
-            scrollToBottom();
+            TypeWriter.push(data.text);
           }
           if (data.done) {
             if (data.conversation_id) State.currentConvId = data.conversation_id;
-            if (bubbleEl) bubbleEl.innerHTML = formatText(fullText);
+            fullText = TypeWriter.finish();
           }
           if (data.error) {
+            const bubbleEl = document.getElementById(aiMsgId);
             if (bubbleEl) bubbleEl.innerHTML = '⚠️ 出错了：' + data.error;
           }
         } catch (_) {}
@@ -306,7 +349,7 @@ function appendMessage(role, html, id) {
   var now = new Date();
   var timeStr = now.getHours().toString().padStart(2,'0') + ':' + now.getMinutes().toString().padStart(2,'0');
   if (role === 'ai') {
-    div.innerHTML = `<span class="msg-avatar">${emp.emoji || '🤖'}</span><div class="msg-content"><div class="msg-bubble" ${id ? `id="${id}"` : ''}>${html}</div><span class="msg-time">${timeStr}</span></div>`;
+    div.innerHTML = `<span class="msg-avatar">${emp.emoji || '🤖'}</span><div class="msg-content"><div class="msg-bubble" ${id ? `id="${id}"` : ''} ondblclick="copyMsg(this)" title="双击复制">${html}</div><span class="msg-time">${timeStr}</span></div>`;
   } else {
     div.innerHTML = `<div class="msg-content"><div class="msg-bubble">${escHtml(html)}</div><span class="msg-time">${timeStr}</span></div><span class="msg-avatar">👤</span>`;
   }
@@ -323,6 +366,15 @@ function formatText(text) {
   let s = text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
   // Code blocks (```)
   s = s.replace(/```(\w*)\n([\s\S]*?)```/g, '<pre class="code-block"><code>$2</code></pre>');
+  // Tables
+  s = s.replace(/\|(.+)\|\n\|[-| :]+\|\n((?:\|.+\|\n?)*)/g, (match, header, body) => {
+    const ths = header.split('|').filter(c => c.trim()).map(c => `<th>${c.trim()}</th>`).join('');
+    const rows = body.trim().split('\n').map(row => {
+      const tds = row.split('|').filter(c => c.trim()).map(c => `<td>${c.trim()}</td>`).join('');
+      return `<tr>${tds}</tr>`;
+    }).join('');
+    return `<div class="msg-table-wrap"><table class="msg-table"><thead><tr>${ths}</tr></thead><tbody>${rows}</tbody></table></div>`;
+  });
   // Bold
   s = s.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
   // Inline code
@@ -360,7 +412,12 @@ async function showHistory() {
   }
 
   const items = convs.length === 0
-    ? '<p class="empty-hint">暂无对话记录</p>'
+    ? `<div class="empty-state-cta">
+    <div class="empty-state-icon">💬</div>
+    <div class="empty-state-title">还没有对话记录</div>
+    <div class="empty-state-desc">选择一位数字员工，开始你的第一次对话</div>
+    <button class="btn-pill btn-primary" style="margin-top:16px" onclick="closeModal('history-modal');document.getElementById('employees').scrollIntoView({behavior:'smooth'})">去认识数字员工 →</button>
+  </div>`
     : convs.map(c => {
         const emp = EMPLOYEES[c.employee_type] || {};
         const lastMsg = c.messages[c.messages.length - 1];
@@ -466,6 +523,21 @@ function clearChat() {
     container.innerHTML = '<div class="msg msg-ai"><span class="msg-avatar">' + emp.emoji + '</span><div class="msg-bubble">' + emp.intro + '</div></div>';
   }
   showToast('已开启新对话');
+}
+
+function copyMsg(el) {
+  const text = el.innerText || el.textContent;
+  if (navigator.clipboard) {
+    navigator.clipboard.writeText(text).then(() => showToast('已复制到剪贴板 ✓'));
+  } else {
+    const ta = document.createElement('textarea');
+    ta.value = text;
+    document.body.appendChild(ta);
+    ta.select();
+    document.execCommand('copy');
+    document.body.removeChild(ta);
+    showToast('已复制到剪贴板 ✓');
+  }
 }
 
 // ─── Init ─────────────────────────────────────────────────────────────────────

@@ -602,3 +602,56 @@
   animation: spin .6s linear infinite;
 }
 @keyframes spin { to { transform: rotate(360deg); } }
+
+/* ─── Markdown Table ─────────────────────────────────────────────────────── */
+.msg-table-wrap {
+  overflow-x: auto;
+  margin: 8px 0;
+  border-radius: 8px;
+  border: 1px solid rgba(0,0,0,0.1);
+}
+.msg-table {
+  border-collapse: collapse;
+  width: 100%;
+  font-size: 13px;
+  min-width: 300px;
+}
+.msg-table th {
+  background: rgba(0,0,0,0.05);
+  padding: 8px 12px;
+  text-align: left;
+  font-weight: 600;
+  border-bottom: 1px solid rgba(0,0,0,0.1);
+  white-space: nowrap;
+}
+.msg-table td {
+  padding: 7px 12px;
+  border-bottom: 1px solid rgba(0,0,0,0.06);
+}
+.msg-table tr:last-child td { border-bottom: none; }
+.msg-table tr:nth-child(even) td { background: rgba(0,0,0,0.02); }
+.msg-user .msg-table th { background: rgba(255,255,255,0.15); }
+.msg-user .msg-table td { border-color: rgba(255,255,255,0.1); }
+
+/* ─── Copy hint ──────────────────────────────────────────────────────────── */
+.msg-ai .msg-bubble[title] { cursor: pointer; }
+.msg-ai .msg-bubble[title]:hover::after {
+  content: '双击复制';
+  position: absolute;
+  right: -4px;
+  bottom: -20px;
+  font-size: 10px;
+  color: #86868b;
+  white-space: nowrap;
+  pointer-events: none;
+}
+.msg-ai .msg-bubble { position: relative; }
+
+/* ─── Empty state CTA ───────────────────────────────────────────────────── */
+.empty-state-cta {
+  text-align: center;
+  padding: 40px 24px;
+}
+.empty-state-icon { font-size: 48px; margin-bottom: 16px; }
+.empty-state-title { font-size: 17px; font-weight: 600; color: #1d1d1f; margin-bottom: 8px; }
+.empty-state-desc { font-size: 14px; color: #6e6e73; line-height: 1.6; }

@@ -18,6 +18,8 @@ from email.mime.multipart import MIMEMultipart
 from flask import Flask, render_template, request, jsonify, Response, stream_with_context
 from openai import OpenAI
 from functools import wraps
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s [%(levelname)s] %(message)s')
 logger = logging.getLogger(__name__)
@@ -26,8 +28,15 @@ from config import Config
 from models import db, User, Conversation, Lead
 
 app = Flask(__name__)
+limiter = Limiter(
+    get_remote_address,
+    app=None,
+    default_limits=[],
+    storage_uri="memory://"
+)
 app.config.from_object(Config)
 db.init_app(app)
+limiter.init_app(app)
 
 with app.app_context():
     db.create_all()
@@ -188,6 +197,16 @@ def send_email(subject, body):
 
 # ─── Routes ──────────────────────────────────────────────────────────────────
 
+@app.route('/robots.txt')
+def robots():
+    from flask import send_from_directory
+    return send_from_directory(app.static_folder, 'robots.txt')
+
+@app.route('/sitemap.xml')
+def sitemap():
+    from flask import send_from_directory
+    return send_from_directory(app.static_folder, 'sitemap.xml')
+
 @app.route('/')
 def index():
     user = get_current_user()
@@ -195,6 +214,7 @@ def index():
 
 # ── Auth ──────────────────────────────────────────────────────────────────────
 @app.route('/api/register', methods=['POST'])
+@limiter.limit("5 per minute")
 def register():
     data = request.json or {}
     username = data.get('username', '').strip()
@@ -224,6 +244,7 @@ def register():
 
 
 @app.route('/api/login', methods=['POST'])
+@limiter.limit("10 per minute")
 def login():
     data = request.json or {}
     username = data.get('username', '').strip()
@@ -250,6 +271,7 @@ def me(user):
 
 # ── Chat ──────────────────────────────────────────────────────────────────────
 @app.route('/api/chat', methods=['POST'])
+@limiter.limit("30 per minute")
 def chat():
     data = request.json or {}
     employee_type = data.get('employee_type', 'ada').lower()
@@ -264,6 +286,12 @@ def chat():
     if employee_type not in EMPLOYEE_PROMPTS:
         return jsonify({'error': '未知的员工类型'}), 400
     history = history[:20]  # limit history
+    # Limit each history message content length
+    history = [
+        {**h, 'content': h.get('content', '')[:2000]}
+        for h in history
+        if h.get('role') in ('user', 'assistant')
+    ]
 
     user = get_current_user()
 
@@ -301,7 +329,10 @@ def chat():
         # Save conversation to DB
         try:
             if conv_id:
-                conv = Conversation.query.get(conv_id)
+                conv = Conversation.query.filter_by(
+                    id=conv_id,
+                    user_id=user.id if user else None
+                ).first()
             else:
                 conv = None
 
@@ -353,6 +384,7 @@ def get_conversation(user, conv_id):
 
 # ── Leads / Contact ────────────────────────────────────────────────────────────
 @app.route('/api/contact', methods=['POST'])
+@limiter.limit("5 per minute")
 def contact():
     data = request.json or {}
     name = data.get('name', '').strip()
@@ -363,6 +395,9 @@ def contact():
 
     if not name or not phone:
         return jsonify({'success': False, 'message': '姓名和电话为必填项'}), 400
+    # 支持手机号、固话、400电话等常见格式
+    if not re.match(r'^[\d\-\+\(\)\s]{7,20}$', phone):
+        return jsonify({'success': False, 'message': '请输入有效的联系电话'}), 400
 
     lead = Lead(name=name, phone=phone, company=company, plan=plan, message=message)
     db.session.add(lead)

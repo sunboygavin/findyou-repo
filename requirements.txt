@@ -4,3 +4,4 @@ sqlalchemy>=2.0
 bcrypt>=5.0
 pyjwt>=2.8
 openai>=1.0
+flask-limiter>=3.5.0
