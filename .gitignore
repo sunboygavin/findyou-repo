@@ -6,3 +6,7 @@ app.pid
 .DS_Store
 The AI workspace that works for you. _ Notion.html
 The AI workspace that works for you. _ Notion_files/
+
+.env
+findyou.db
+*.log

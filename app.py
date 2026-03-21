@@ -1,8 +1,13 @@
 import sys
-sys.path.insert(0, '/home/node/.local/lib/python3.11/site-packages')
+import os
+sys.path.insert(0, os.path.join(os.path.expanduser('~'), '.local/lib/python3.11/site-packages'))
 
 import os
 import json
+import re
+import html as html_mod
+import logging
+import threading
 import jwt
 import bcrypt
 import smtplib
@@ -14,6 +19,9 @@ from flask import Flask, render_template, request, jsonify, Response, stream_wit
 from openai import OpenAI
 from functools import wraps
 
+logging.basicConfig(level=logging.INFO, format='%(asctime)s [%(levelname)s] %(message)s')
+logger = logging.getLogger(__name__)
+
 from config import Config
 from models import db, User, Conversation, Lead
 
@@ -24,11 +32,34 @@ db.init_app(app)
 with app.app_context():
     db.create_all()
 
+
+
+# ─── Request logging ─────────────────────────────────────────────────────────
+@app.before_request
+def log_request():
+    logger.info(f"{request.method} {request.path} from {request.remote_addr}")
+
+# ─── Error handlers ──────────────────────────────────────────────────────────
+@app.errorhandler(404)
+def not_found(e):
+    if request.path.startswith('/api/'):
+        return jsonify({'error': '接口不存在'}), 404
+    return render_template('index.html', user=''), 404
+
+@app.errorhandler(500)
+def server_error(e):
+    logger.error(f"500 error: {e}")
+    return jsonify({'error': '服务器内部错误'}), 500
+
 # ─── DeepSeek client ────────────────────────────────────────────────────────
-ai_client = OpenAI(
-    api_key=Config.DEEPSEEK_API_KEY,
-    base_url=Config.DEEPSEEK_BASE_URL
-)
+if Config.DEEPSEEK_API_KEY:
+    ai_client = OpenAI(
+        api_key=Config.DEEPSEEK_API_KEY,
+        base_url=Config.DEEPSEEK_BASE_URL
+    )
+else:
+    ai_client = None
+    logger.warning("DEEPSEEK_API_KEY not set, AI chat will be unavailable")
 
 # ─── Employee system prompts ─────────────────────────────────────────────────
 EMPLOYEE_PROMPTS = {
@@ -129,21 +160,31 @@ def login_required(f):
     return decorated
 
 # ─── Email helper ─────────────────────────────────────────────────────────────
-def send_email(subject, body):
+def _send_email_sync(subject, body):
     try:
+        if not Config.SMTP_USER or not Config.SMTP_PASS:
+            logger.warning("SMTP not configured, skipping email")
+            return False
         msg = MIMEMultipart('alternative')
         msg['Subject'] = subject
         msg['From'] = Config.SMTP_USER
         msg['To'] = Config.NOTIFY_EMAIL
         msg.attach(MIMEText(body, 'html', 'utf-8'))
         context = ssl.create_default_context()
-        with smtplib.SMTP_SSL(Config.SMTP_HOST, Config.SMTP_PORT, context=context) as server:
+        with smtplib.SMTP_SSL(Config.SMTP_HOST, Config.SMTP_PORT, context=context, timeout=10) as server:
             server.login(Config.SMTP_USER, Config.SMTP_PASS)
             server.sendmail(Config.SMTP_USER, Config.NOTIFY_EMAIL, msg.as_string())
+        logger.info(f"Email sent: {subject}")
         return True
     except Exception as e:
-        print(f'[Email Error] {e}')
+        logger.error(f'Email error: {e}')
         return False
+
+def send_email(subject, body):
+    """Non-blocking email send via thread"""
+    t = threading.Thread(target=_send_email_sync, args=(subject, body), daemon=True)
+    t.start()
+    return True
 
 # ─── Routes ──────────────────────────────────────────────────────────────────
 
@@ -162,6 +203,10 @@ def register():
 
     if not username or not email or not password:
         return jsonify({'success': False, 'message': '请填写所有必填字段'}), 400
+    if not re.match(r'^[a-zA-Z0-9_]{3,20}$', username):
+        return jsonify({'success': False, 'message': '用户名需3-20位字母数字下划线'}), 400
+    if not re.match(r'^[^@]+@[^@]+\.[^@]+$', email):
+        return jsonify({'success': False, 'message': '邮箱格式不正确'}), 400
     if len(password) < 6:
         return jsonify({'success': False, 'message': '密码至少6位'}), 400
     if User.query.filter_by(username=username).first():
@@ -214,8 +259,11 @@ def chat():
 
     if not message:
         return jsonify({'error': '消息不能为空'}), 400
+    if len(message) > 2000:
+        return jsonify({'error': '消息长度不能超过2000字符'}), 400
     if employee_type not in EMPLOYEE_PROMPTS:
         return jsonify({'error': '未知的员工类型'}), 400
+    history = history[:20]  # limit history
 
     user = get_current_user()
 
@@ -226,6 +274,9 @@ def chat():
         if h.get('role') in ('user', 'assistant'):
             messages.append({'role': h['role'], 'content': h['content']})
     messages.append({'role': 'user', 'content': message})
+
+    if not ai_client:
+        return jsonify({'error': 'AI 服务未配置，请联系管理员'}), 503
 
     def generate():
         full_response = ''
@@ -262,9 +313,11 @@ def chat():
                 db.session.add(conv)
 
             msgs = conv.messages
-            msgs.append({'role': 'user', 'content': message, 'time': datetime.utcnow().isoformat()})
-            msgs.append({'role': 'assistant', 'content': full_response, 'time': datetime.utcnow().isoformat()})
+            msgs.append({'role': 'user', 'content': message, 'time': datetime.now(timezone.utc).isoformat()})
+            msgs.append({'role': 'assistant', 'content': full_response, 'time': datetime.now(timezone.utc).isoformat()})
             conv.messages = msgs
+            if not conv.title:
+                conv.title = message[:30] + ('...' if len(message) > 30 else '')
             db.session.commit()
             yield f"data: {json.dumps({'done': True, 'conversation_id': conv.id})}\n\n"
         except Exception as e:
@@ -316,15 +369,21 @@ def contact():
     db.session.commit()
 
     # Send email notification
+    # XSS protection: escape user input in email HTML
+    s_name = html_mod.escape(name)
+    s_phone = html_mod.escape(phone)
+    s_company = html_mod.escape(company or '未填写')
+    s_plan = html_mod.escape(plan or '未选择')
+    s_message = html_mod.escape(message or '无')
     email_body = f"""
     <html><body style="font-family:Arial,sans-serif;color:#333">
     <h2 style="color:#0071e3">新咨询线索 — Findyou</h2>
     <table cellpadding="8" cellspacing="0" border="1" style="border-collapse:collapse;width:100%;max-width:500px">
-    <tr><td><b>姓名</b></td><td>{name}</td></tr>
-    <tr><td><b>电话</b></td><td>{phone}</td></tr>
-    <tr><td><b>公司</b></td><td>{company or '未填写'}</td></tr>
-    <tr><td><b>方案</b></td><td>{plan or '未选择'}</td></tr>
-    <tr><td><b>需求描述</b></td><td>{message or '无'}</td></tr>
+    <tr><td><b>姓名</b></td><td>{s_name}</td></tr>
+    <tr><td><b>电话</b></td><td>{s_phone}</td></tr>
+    <tr><td><b>公司</b></td><td>{s_company}</td></tr>
+    <tr><td><b>方案</b></td><td>{s_plan}</td></tr>
+    <tr><td><b>需求描述</b></td><td>{s_message}</td></tr>
     <tr><td><b>提交时间</b></td><td>{lead.created_at.strftime('%Y-%m-%d %H:%M:%S')} UTC</td></tr>
     </table>
     <p style="margin-top:16px;color:#666">请尽快跟进此线索。</p>
@@ -339,8 +398,18 @@ def contact():
 @app.route('/api/leads', methods=['GET'])
 @login_required
 def get_leads(user):
-    leads = Lead.query.order_by(Lead.created_at.desc()).all()
-    return jsonify({'success': True, 'leads': [l.to_dict() for l in leads]})
+    if user.username not in Config.ADMIN_USERS and not user.is_admin:
+        return jsonify({'error': '需要管理员权限'}), 403
+    page = request.args.get('page', 1, type=int)
+    per_page = min(request.args.get('per_page', 20, type=int), 100)
+    pagination = Lead.query.order_by(Lead.created_at.desc()).paginate(page=page, per_page=per_page, error_out=False)
+    return jsonify({
+        'success': True,
+        'leads': [l.to_dict() for l in pagination.items],
+        'total': pagination.total,
+        'page': page,
+        'pages': pagination.pages
+    })
 
 
 @app.route('/api/logout', methods=['POST'])

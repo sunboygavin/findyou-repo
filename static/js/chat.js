@@ -188,6 +188,7 @@ function openChat(employeeType) {
             <div class="chat-emp-status"><span class="status-dot" style="background:${emp.color}"></span>在线</div>
           </div>
         </div>
+        <button class="chat-clear-btn" onclick="clearChat()" title="新对话">🔄</button>
         <button class="modal-close" onclick="closeModal('chat-modal')">✕</button>
       </div>
       <div class="chat-messages" id="chat-messages">
@@ -212,6 +213,11 @@ function handleChatKey(e) {
     e.preventDefault();
     sendMessage();
   }
+  // Auto-resize textarea
+  setTimeout(() => {
+    const ta = document.getElementById('chat-input');
+    if (ta) { ta.style.height = 'auto'; ta.style.height = Math.min(ta.scrollHeight, 120) + 'px'; }
+  }, 0);
 }
 
 async function sendMessage() {
@@ -281,7 +287,7 @@ async function sendMessage() {
     }
   } catch (err) {
     const bubbleEl = document.getElementById(aiMsgId);
-    if (bubbleEl) bubbleEl.innerHTML = '⚠️ 连接失败，请稍后重试';
+    if (bubbleEl) bubbleEl.innerHTML = '⚠️ 连接失败 <button class="retry-btn" onclick="retryLast()">重试</button>';
   }
 
   if (fullText) State.history.push({ role: 'assistant', content: fullText });
@@ -312,12 +318,25 @@ function scrollToBottom() {
 }
 
 function formatText(text) {
-  // 基础 markdown: **bold**, `code`, 换行
-  return text
-    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
-    .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-    .replace(/`([^`]+)`/g, '<code>$1</code>')
-    .replace(/\n/g, '<br>');
+  let s = text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  // Code blocks (```)
+  s = s.replace(/```(\w*)\n([\s\S]*?)```/g, '<pre class="code-block"><code>$2</code></pre>');
+  // Bold
+  s = s.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+  // Inline code
+  s = s.replace(/`([^`]+)`/g, '<code>$1</code>');
+  // Ordered lists
+  s = s.replace(/^(\d+)\.\s+(.+)$/gm, '<li class="ol-item">$2</li>');
+  // Unordered lists
+  s = s.replace(/^[-•]\s+(.+)$/gm, '<li class="ul-item">$1</li>');
+  // Wrap consecutive li
+  s = s.replace(/((?:<li class="ol-item">.*<\/li>\n?)+)/g, '<ol>$1</ol>');
+  s = s.replace(/((?:<li class="ul-item">.*<\/li>\n?)+)/g, '<ul>$1</ul>');
+  // Newlines (outside of pre/ol/ul)
+  s = s.replace(/\n/g, '<br>');
+  // Clean up double <br> inside lists
+  s = s.replace(/<br><\/?(ol|ul|li|pre)>/g, '</$1>');
+  return s;
 }
 
 function escHtml(s) {
@@ -404,6 +423,48 @@ document.addEventListener('click', e => {
     if (el && e.target === el) closeModal(id);
   });
 });
+
+
+
+// Auto handle 401 (token expired)
+async function apiPostSafe(url, body) {
+  const res = await apiPost(url, body);
+  if (res.error === '未授权，请先登录') {
+    clearAuth();
+    renderNavUser();
+    showAuthModal('login');
+    showToast('登录已过期，请重新登录');
+  }
+  return res;
+}
+
+function retryLast() {
+  if (State.history.length > 0) {
+    const lastUserMsg = [...State.history].reverse().find(m => m.role === 'user');
+    if (lastUserMsg) {
+      // Remove failed AI response
+      const container = document.getElementById('chat-messages');
+      if (container && container.lastChild) container.removeChild(container.lastChild);
+      State.history = State.history.filter((m, i) => i < State.history.length - 1);
+      document.getElementById('chat-input').value = lastUserMsg.content;
+      State.history.pop(); // remove user msg too, sendMessage will re-add
+      sendMessage();
+    }
+  }
+}
+
+// New conversation button
+function clearChat() {
+  if (!State.currentEmployee) return;
+  State.currentConvId = null;
+  State.history = [];
+  const emp = EMPLOYEES[State.currentEmployee];
+  const container = document.getElementById('chat-messages');
+  if (container) {
+    container.innerHTML = '<div class="msg msg-ai"><span class="msg-avatar">' + emp.emoji + '</span><div class="msg-bubble">' + emp.intro + '</div></div>';
+  }
+  showToast('已开启新对话');
+}
 
 // ─── Init ─────────────────────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', () => {
