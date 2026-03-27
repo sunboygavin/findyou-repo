@@ -207,6 +207,11 @@ def sitemap():
     from flask import send_from_directory
     return send_from_directory(app.static_folder, 'sitemap.xml')
 
+@app.route('/findyou.jpg')
+def favicon():
+    from flask import send_from_directory
+    return send_from_directory(os.path.dirname(os.path.abspath(__file__)), 'findyou.jpg')
+
 @app.route('/')
 def index():
     user = get_current_user()
