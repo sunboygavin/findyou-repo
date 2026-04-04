@@ -33,3 +33,51 @@ class Config:
 
     # Admin
     ADMIN_USERS = os.environ.get('ADMIN_USERS', 'admin').split(',')
+
+    # Usage quota warning thresholds (percentage)
+    USAGE_WARN_THRESHOLD = 80
+    USAGE_CRITICAL_THRESHOLD = 90
+
+    # Default plans seed data (price in fen/cents)
+    DEFAULT_PLANS = [
+        {
+            'name': 'starter',
+            'display_name': '入门版',
+            'price_monthly': 29900,
+            'max_employees': 1,
+            'max_calls_monthly': 10000,
+            'model_tier': 'basic',
+            'features': ['单个数字员工', '基础模型', '邮件支持', '标准SLA'],
+            'sort_order': 1,
+        },
+        {
+            'name': 'professional',
+            'display_name': '专业版',
+            'price_monthly': 89900,
+            'max_employees': 3,
+            'max_calls_monthly': 50000,
+            'model_tier': 'mid',
+            'features': ['3个数字员工', '中级模型', '优先支持', '高级SLA', '个性化定制'],
+            'sort_order': 2,
+        },
+        {
+            'name': 'enterprise',
+            'display_name': '企业版',
+            'price_monthly': 299900,
+            'max_employees': 10,
+            'max_calls_monthly': 200000,
+            'model_tier': 'premium',
+            'features': ['10个数字员工', '高级模型', '专属客服', '企业SLA', '深度定制', 'API接入'],
+            'sort_order': 3,
+        },
+        {
+            'name': 'flagship',
+            'display_name': '旗舰版',
+            'price_monthly': 0,  # 定制报价
+            'max_employees': 99,
+            'max_calls_monthly': 999999,
+            'model_tier': 'all',
+            'features': ['无限数字员工', '全部模型', '7×24专属支持', '定制SLA', '私有化部署', '全量API'],
+            'sort_order': 4,
+        },
+    ]

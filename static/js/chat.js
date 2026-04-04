@@ -103,8 +103,10 @@ function renderNavUser() {
   if (!navRight) return;
   if (State.user) {
     navRight.innerHTML = `
-      <span class="nav-username">👤 ${State.user.username}</span>
+      <span class="nav-username" onclick="showProfileModal()" style="cursor:pointer" title="个人资料">👤 ${State.user.username}</span>
+      <button class="btn-pill btn-outline" onclick="showUsageModal()">用量</button>
       <button class="btn-pill btn-outline" onclick="showHistory()">对话记录</button>
+      ${State.user.is_admin ? '<a href="/admin" class="btn-pill btn-outline">管理后台</a>' : ''}
       <button class="btn-pill btn-dark" onclick="doLogout()">退出</button>`;
   } else {
     navRight.innerHTML = `
@@ -232,6 +234,7 @@ function openChat(employeeType) {
           </div>
         </div>
         <button class="chat-clear-btn" onclick="clearChat()" title="新对话">🔄</button>
+        <button class="chat-clear-btn" onclick="showEmployeeConfig('${employeeType}')" title="个性化设置">⚙️</button>
         <button class="modal-close" onclick="closeModal('chat-modal')">✕</button>
       </div>
       <div class="chat-messages" id="chat-messages">
@@ -319,6 +322,8 @@ async function sendMessage() {
           }
           if (data.done) {
             if (data.conversation_id) State.currentConvId = data.conversation_id;
+            if (data.usage_warning) showToast('⚠️ ' + data.usage_warning, 5000);
+            if (data.quota_exceeded) showToast('❌ 本月用量已达上限，请升级套餐', 5000);
             fullText = TypeWriter.finish();
           }
           if (data.error) {
@@ -400,9 +405,6 @@ function escHtml(s) {
 // ─── History Modal ────────────────────────────────────────────────────────────
 async function showHistory() {
   if (!State.user) { showAuthModal('login'); return; }
-  const data = await apiGet('/api/conversations');
-  const convs = data.conversations || [];
-
   let modal = document.getElementById('history-modal');
   if (!modal) {
     modal = document.createElement('div');
@@ -410,51 +412,107 @@ async function showHistory() {
     modal.className = 'modal-overlay';
     document.body.appendChild(modal);
   }
+  modal.innerHTML = `<div class="modal-box history-box"><div class="modal-header"><h3>对话记录</h3><button class="modal-close" onclick="closeModal('history-modal')">✕</button></div><div class="history-list"><p style="text-align:center;color:#888;padding:32px">加载中...</p></div></div>`;
+  modal.style.display = 'flex';
+  await renderHistoryList(modal);
+}
 
+async function renderHistoryList(modal, searchQuery) {
+  let res;
+  if (searchQuery) {
+    res = await apiGet('/api/conversations/search?q=' + encodeURIComponent(searchQuery));
+  } else {
+    res = await apiGet('/api/conversations');
+  }
+  const convs = res.conversations || [];
   const items = convs.length === 0
-    ? `<div class="empty-state-cta">
-    <div class="empty-state-icon">💬</div>
-    <div class="empty-state-title">还没有对话记录</div>
-    <div class="empty-state-desc">选择一位数字员工，开始你的第一次对话</div>
-    <button class="btn-pill btn-primary" style="margin-top:16px" onclick="closeModal('history-modal');document.getElementById('employees').scrollIntoView({behavior:'smooth'})">去认识数字员工 →</button>
-  </div>`
+    ? `<div class="history-empty"><p>${searchQuery ? '未找到匹配的对话' : '暂无对话记录'}</p></div>`
     : convs.map(c => {
         const emp = EMPLOYEES[c.employee_type] || {};
-        const lastMsg = c.messages[c.messages.length - 1];
-        const preview = lastMsg ? lastMsg.content.slice(0, 60) + '...' : '无消息';
-        return `<div class="history-item" onclick="loadConversation('${c.employee_type}', ${c.id}, ${JSON.stringify(c.messages).replace(/"/g, '&quot;')})">
-          <span class="history-emp">${emp.emoji || '🤖'} ${emp.name || c.employee_type}</span>
-          <span class="history-preview">${escHtml(preview)}</span>
-          <span class="history-time">${new Date(c.created_at).toLocaleDateString('zh-CN')}</span>
+        const preview = c.preview || c.title || '无消息';
+        return `<div class="history-item">
+          <div class="history-item-main" onclick="loadConvById('${c.employee_type}', ${c.id})">
+            <span class="history-emp">${emp.emoji || '🤖'} ${emp.name || c.employee_type}</span>
+            <span class="history-preview">${escHtml(preview.slice(0, 60))}</span>
+            <span class="history-time">${new Date(c.created_at).toLocaleDateString('zh-CN')}</span>
+          </div>
+          <div class="history-item-actions">
+            <button onclick="exportConv(${c.id}, 'md')" title="导出Markdown">📄</button>
+            <button onclick="exportConv(${c.id}, 'json')" title="导出JSON">📋</button>
+            <button onclick="deleteConv(${c.id})" title="删除">🗑️</button>
+          </div>
         </div>`;
       }).join('');
 
-  modal.innerHTML = `
-    <div class="modal-box history-box">
-      <div class="modal-header">
-        <h3>对话记录</h3>
-        <button class="modal-close" onclick="closeModal('history-modal')">✕</button>
-      </div>
-      <div class="history-list">${items}</div>
-    </div>`;
-  modal.style.display = 'flex';
+  const box = modal.querySelector('.modal-box') || modal;
+  box.innerHTML = `
+    <div class="modal-header">
+      <h3>对话记录</h3>
+      <button class="modal-close" onclick="closeModal('history-modal')">✕</button>
+    </div>
+    <div class="history-search">
+      <input type="text" id="history-search-input" placeholder="搜索对话内容..." value="${escHtml(searchQuery || '')}" onkeydown="if(event.key==='Enter')searchHistory()">
+      <button onclick="searchHistory()">🔍</button>
+    </div>
+    <div class="history-list">${items}</div>`;
 }
 
-function loadConversation(employeeType, convId, messages) {
-  closeModal('history-modal');
-  State.currentEmployee = employeeType;
-  State.currentConvId = convId;
-  State.history = messages;
-  openChat(employeeType);
+function searchHistory() {
+  const q = document.getElementById('history-search-input')?.value?.trim();
+  const modal = document.getElementById('history-modal');
+  if (modal) renderHistoryList(modal, q || '');
+}
 
-  // 填充历史消息
-  setTimeout(() => {
-    const container = document.getElementById('chat-messages');
-    if (!container) return;
-    container.innerHTML = '';
-    messages.forEach(m => appendMessage(m.role === 'user' ? 'user' : 'ai', m.role === 'user' ? m.content : formatText(m.content)));
-    scrollToBottom();
-  }, 100);
+async function loadConvById(employeeType, convId) {
+  const res = await apiGet('/api/conversations/' + convId);
+  if (res.messages) {
+    closeModal('history-modal');
+    State.currentEmployee = employeeType;
+    State.currentConvId = convId;
+    State.history = res.messages;
+    openChat(employeeType);
+    setTimeout(() => {
+      const container = document.getElementById('chat-messages');
+      if (!container) return;
+      container.innerHTML = '';
+      res.messages.forEach(m => appendMessage(m.role === 'user' ? 'user' : 'ai', m.role === 'user' ? m.content : formatText(m.content)));
+      scrollToBottom();
+    }, 100);
+  }
+}
+
+async function deleteConv(convId) {
+  if (!confirm('确定删除这条对话记录？')) return;
+  const headers = {};
+  if (State.token) headers['Authorization'] = 'Bearer ' + State.token;
+  await fetch('/api/conversations/' + convId, { method: 'DELETE', headers });
+  showToast('已删除');
+  const modal = document.getElementById('history-modal');
+  if (modal) renderHistoryList(modal);
+}
+
+function exportConv(convId, format) {
+  const headers = {};
+  if (State.token) headers['Authorization'] = 'Bearer ' + State.token;
+  fetch('/api/conversations/' + convId + '/export?format=' + format, { headers }).then(res => {
+    if (format === 'md') {
+      res.blob().then(blob => {
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = 'conversation_' + convId + '.md';
+        a.click();
+      });
+    } else {
+      res.json().then(data => {
+        const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = 'conversation_' + convId + '.json';
+        a.click();
+      });
+    }
+  });
+  showToast('正在导出...');
 }
 
 // ─── Utility ──────────────────────────────────────────────────────────────────
@@ -537,6 +595,247 @@ function copyMsg(el) {
     document.execCommand('copy');
     document.body.removeChild(ta);
     showToast('已复制到剪贴板 ✓');
+  }
+}
+
+// ─── API helpers (extended) ──────────────────────────────────────────────────
+async function apiPut(url, body) {
+  const headers = { 'Content-Type': 'application/json' };
+  if (State.token) headers['Authorization'] = 'Bearer ' + State.token;
+  const res = await fetch(url, { method: 'PUT', headers, body: JSON.stringify(body) });
+  return res.json();
+}
+
+// ─── Profile Modal ───────────────────────────────────────────────────────────
+async function showProfileModal() {
+  if (!State.user) { showAuthModal('login'); return; }
+  const res = await apiGet('/api/profile');
+  if (!res.success) return;
+  const u = res.user;
+  const sub = res.subscription;
+
+  let modal = document.getElementById('profile-modal');
+  if (!modal) {
+    modal = document.createElement('div');
+    modal.id = 'profile-modal';
+    modal.className = 'modal-overlay';
+    document.body.appendChild(modal);
+  }
+  modal.innerHTML = `
+    <div class="modal-box" style="max-width:480px">
+      <div class="modal-header">
+        <h3>个人资料</h3>
+        <button class="modal-close" onclick="closeModal('profile-modal')">✕</button>
+      </div>
+      <div style="padding:20px">
+        <div class="form-group"><label>用户名</label><input value="${escHtml(u.username)}" disabled style="opacity:0.6"></div>
+        <div class="form-group"><label>邮箱</label><input value="${escHtml(u.email)}" disabled style="opacity:0.6"></div>
+        <div class="form-group"><label>手机</label><input id="prof-phone" value="${escHtml(u.phone || '')}" placeholder="选填"></div>
+        <div class="form-group"><label>公司</label><input id="prof-company" value="${escHtml(u.company || '')}" placeholder="选填"></div>
+        <div class="form-group"><label>简介</label><textarea id="prof-bio" rows="2" placeholder="选填">${escHtml(u.bio || '')}</textarea></div>
+        <button class="btn-pill btn-primary btn-full" onclick="saveProfile()">保存资料</button>
+        <hr style="margin:20px 0;border:none;border-top:1px solid #eee">
+        <h4 style="margin-bottom:12px">修改密码</h4>
+        <div class="form-group"><label>旧密码</label><input id="pw-old" type="password"></div>
+        <div class="form-group"><label>新密码</label><input id="pw-new" type="password" placeholder="至少6位"></div>
+        <div id="pw-msg" style="color:#ff3b30;font-size:13px;margin-bottom:8px"></div>
+        <button class="btn-pill btn-outline btn-full" onclick="changePassword()">修改密码</button>
+        ${sub ? `<div style="margin-top:16px;padding:12px;background:#f5f5f7;border-radius:8px;font-size:13px">
+          <strong>当前套餐：</strong>${escHtml(sub.plan?.display_name || '免费')}<br>
+          <strong>到期时间：</strong>${sub.expires_at ? new Date(sub.expires_at).toLocaleDateString('zh-CN') : '无'}
+        </div>` : ''}
+      </div>
+    </div>`;
+  modal.style.display = 'flex';
+}
+
+async function saveProfile() {
+  const res = await apiPut('/api/profile', {
+    phone: document.getElementById('prof-phone').value,
+    company: document.getElementById('prof-company').value,
+    bio: document.getElementById('prof-bio').value,
+  });
+  if (res.success) {
+    State.user = res.user;
+    localStorage.setItem('fy_user', JSON.stringify(res.user));
+    showToast('资料已保存');
+    closeModal('profile-modal');
+  } else {
+    showToast(res.error || '保存失败');
+  }
+}
+
+async function changePassword() {
+  const msgEl = document.getElementById('pw-msg');
+  const res = await apiPut('/api/password', {
+    old_password: document.getElementById('pw-old').value,
+    new_password: document.getElementById('pw-new').value,
+  });
+  if (res.success) {
+    showToast('密码修改成功');
+    document.getElementById('pw-old').value = '';
+    document.getElementById('pw-new').value = '';
+    msgEl.textContent = '';
+  } else {
+    msgEl.textContent = res.error || '修改失败';
+  }
+}
+
+// ─── Usage Modal ─────────────────────────────────────────────────────────────
+async function showUsageModal() {
+  if (!State.user) { showAuthModal('login'); return; }
+  const res = await apiGet('/api/usage');
+  if (!res.success) return;
+
+  let modal = document.getElementById('usage-modal');
+  if (!modal) {
+    modal = document.createElement('div');
+    modal.id = 'usage-modal';
+    modal.className = 'modal-overlay';
+    document.body.appendChild(modal);
+  }
+
+  const pct = res.percentage || 0;
+  const barColor = pct >= 90 ? '#ff3b30' : pct >= 80 ? '#ff9500' : '#34c759';
+  const breakdownHtml = Object.keys(res.breakdown || {}).map(k => {
+    const emp = EMPLOYEES[k] || {};
+    return `<div style="display:flex;justify-content:space-between;padding:4px 0"><span>${emp.emoji || ''} ${emp.name || k}</span><span>${res.breakdown[k]} 次</span></div>`;
+  }).join('') || '<p style="color:#888">暂无使用记录</p>';
+
+  modal.innerHTML = `
+    <div class="modal-box" style="max-width:420px">
+      <div class="modal-header">
+        <h3>本月用量</h3>
+        <button class="modal-close" onclick="closeModal('usage-modal')">✕</button>
+      </div>
+      <div style="padding:20px">
+        <div style="text-align:center;margin-bottom:20px">
+          <div style="font-size:36px;font-weight:700">${res.total_calls}</div>
+          <div style="color:#888;font-size:14px">/ ${res.max_calls} 次</div>
+          <div style="background:#f0f0f0;border-radius:8px;height:8px;margin-top:12px;overflow:hidden">
+            <div style="background:${barColor};height:100%;width:${Math.min(pct, 100)}%;border-radius:8px;transition:width 0.3s"></div>
+          </div>
+          <div style="font-size:13px;color:${barColor};margin-top:4px">${pct}%</div>
+        </div>
+        <h4 style="margin-bottom:8px">按员工分布</h4>
+        ${breakdownHtml}
+        <button class="btn-pill btn-primary btn-full" style="margin-top:20px" onclick="closeModal('usage-modal');showSubscriptionModal()">升级套餐</button>
+      </div>
+    </div>`;
+  modal.style.display = 'flex';
+}
+
+// ─── Subscription Modal ──────────────────────────────────────────────────────
+async function showSubscriptionModal() {
+  if (!State.user) { showAuthModal('login'); return; }
+  const [plansRes, subRes] = await Promise.all([apiGet('/api/plans'), apiGet('/api/subscription')]);
+  const plans = plansRes.plans || [];
+  const currentSub = subRes.subscription;
+  const currentPlan = currentSub?.plan?.name || '';
+
+  let modal = document.getElementById('sub-modal');
+  if (!modal) {
+    modal = document.createElement('div');
+    modal.id = 'sub-modal';
+    modal.className = 'modal-overlay';
+    document.body.appendChild(modal);
+  }
+
+  const planCards = plans.map(p => {
+    const isCurrent = p.name === currentPlan;
+    const price = p.price_monthly === 0 ? '定制报价' : '¥' + (p.price_monthly / 100) + '/月';
+    return `<div class="plan-card ${isCurrent ? 'plan-current' : ''}" style="border:2px solid ${isCurrent ? '#0071e3' : '#e5e5e5'};border-radius:12px;padding:16px;margin-bottom:12px">
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <div>
+          <strong>${escHtml(p.display_name)}</strong>
+          ${isCurrent ? '<span style="color:#0071e3;font-size:12px;margin-left:8px">当前</span>' : ''}
+          <div style="color:#888;font-size:13px;margin-top:4px">${price} · ${p.max_employees}个员工 · ${p.max_calls_monthly.toLocaleString()}次/月</div>
+        </div>
+        ${isCurrent ? '' : `<button class="btn-pill btn-primary" onclick="subscribePlan('${p.name}')">选择</button>`}
+      </div>
+    </div>`;
+  }).join('');
+
+  modal.innerHTML = `
+    <div class="modal-box" style="max-width:480px">
+      <div class="modal-header">
+        <h3>选择套餐</h3>
+        <button class="modal-close" onclick="closeModal('sub-modal')">✕</button>
+      </div>
+      <div style="padding:20px">${planCards}</div>
+    </div>`;
+  modal.style.display = 'flex';
+}
+
+async function subscribePlan(planName) {
+  const res = await apiPost('/api/subscription', { plan: planName });
+  if (res.success) {
+    showToast('套餐已激活 🎉');
+    closeModal('sub-modal');
+  } else {
+    showToast(res.error || '操作失败');
+  }
+}
+
+// ─── Employee Config (Personality) ───────────────────────────────────────────
+async function showEmployeeConfig(empType) {
+  if (!State.user) { showAuthModal('login'); return; }
+  const emp = EMPLOYEES[empType];
+  if (!emp) return;
+  const res = await apiGet('/api/employee-config/' + empType);
+  const cfg = res.config || {};
+
+  let modal = document.getElementById('empconfig-modal');
+  if (!modal) {
+    modal = document.createElement('div');
+    modal.id = 'empconfig-modal';
+    modal.className = 'modal-overlay';
+    document.body.appendChild(modal);
+  }
+
+  const sliders = [
+    { key: 'tone', label: '语气', left: '严肃', right: '轻松' },
+    { key: 'formality', label: '正式度', left: '正式', right: '随意' },
+    { key: 'proactiveness', label: '主动性', left: '被动', right: '主动' },
+    { key: 'empathy', label: '共情力', left: '理性', right: '感性' },
+    { key: 'creativity', label: '创造力', left: '保守', right: '创新' },
+  ].map(s => `
+    <div style="margin-bottom:16px">
+      <div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:4px">
+        <span>${s.left}</span><strong>${s.label}</strong><span>${s.right}</span>
+      </div>
+      <input type="range" min="0" max="100" value="${cfg[s.key] ?? 50}" id="ec-${s.key}" style="width:100%">
+    </div>`).join('');
+
+  modal.innerHTML = `
+    <div class="modal-box" style="max-width:440px">
+      <div class="modal-header">
+        <h3>${emp.emoji} ${emp.name} — 个性化设置</h3>
+        <button class="modal-close" onclick="closeModal('empconfig-modal')">✕</button>
+      </div>
+      <div style="padding:20px">
+        ${sliders}
+        <div class="form-group"><label>自定义指令</label><textarea id="ec-instructions" rows="3" placeholder="例如：回复时多用表格，语言简洁...">${escHtml(cfg.custom_instructions || '')}</textarea></div>
+        <button class="btn-pill btn-primary btn-full" onclick="saveEmployeeConfig('${empType}')">保存设置</button>
+      </div>
+    </div>`;
+  modal.style.display = 'flex';
+}
+
+async function saveEmployeeConfig(empType) {
+  const res = await apiPut('/api/employee-config/' + empType, {
+    tone: +document.getElementById('ec-tone').value,
+    formality: +document.getElementById('ec-formality').value,
+    proactiveness: +document.getElementById('ec-proactiveness').value,
+    empathy: +document.getElementById('ec-empathy').value,
+    creativity: +document.getElementById('ec-creativity').value,
+    custom_instructions: document.getElementById('ec-instructions').value,
+  });
+  if (res.success) {
+    showToast('个性化设置已保存');
+    closeModal('empconfig-modal');
+  } else {
+    showToast(res.error || '保存失败');
   }
 }
 

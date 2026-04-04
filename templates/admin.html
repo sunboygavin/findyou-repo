@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Findyou 管理后台</title>
+<link rel="icon" type="image/jpeg" href="/findyou.jpg">
+<link rel="stylesheet" href="/static/css/admin.css">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
+</head>
+<body>
+<div class="admin-layout">
+
+<!-- Sidebar -->
+<aside class="admin-sidebar">
+  <div class="admin-logo"><img src="/findyou.jpg" alt=""><span>Findyou 管理</span></div>
+  <ul class="admin-nav">
+    <li data-section="dashboard" class="active" onclick="switchSection('dashboard')"><span>📊</span><span>数据概览</span></li>
+    <li data-section="leads" onclick="switchSection('leads')"><span>📋</span><span>线索管理</span></li>
+    <li data-section="users" onclick="switchSection('users')"><span>👥</span><span>用户管理</span></li>
+    <li data-section="usage" onclick="switchSection('usage')"><span>📈</span><span>用量分析</span></li>
+  </ul>
+  <div class="admin-nav-bottom">
+    <a href="/">← 返回前台</a>
+  </div>
+</aside>
+
+<!-- Main -->
+<main class="admin-main">
+  <div class="admin-header">
+    <h1 id="page-title">数据概览</h1>
+    <div class="admin-header-user">👤 {{ user }}</div>
+  </div>
+
+  <!-- Dashboard Section -->
+  <div id="section-dashboard" class="admin-section active">
+    <div class="stat-grid">
+      <div class="stat-card">
+        <div class="stat-card-label">注册用户</div>
+        <div class="stat-card-value" id="stat-users">-</div>
+        <div class="stat-card-sub" id="stat-today-users"></div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-card-label">对话总数</div>
+        <div class="stat-card-value" id="stat-convs">-</div>
+        <div class="stat-card-sub" id="stat-today-convs"></div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-card-label">咨询线索</div>
+        <div class="stat-card-value" id="stat-leads">-</div>
+        <div class="stat-card-sub" id="stat-today-leads"></div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-card-label">API 调用</div>
+        <div class="stat-card-value" id="stat-usage">-</div>
+        <div class="stat-card-sub" id="stat-today-usage"></div>
+      </div>
+    </div>
+    <div id="leads-status-summary" style="margin-bottom:16px;display:flex;gap:8px;flex-wrap:wrap"></div>
+    <div class="admin-panel">
+      <div class="panel-header"><h3>7天趋势</h3></div>
+      <div class="chart-container"><canvas id="trend-chart"></canvas></div>
+    </div>
+  </div>
+
+  <!-- Leads Section -->
+  <div id="section-leads" class="admin-section">
+    <div class="admin-panel">
+      <div class="panel-header"><h3>线索管理</h3></div>
+      <div class="filter-bar">
+        <select onchange="loadLeads(1, this.value)">
+          <option value="">全部状态</option>
+          <option value="new">新线索</option>
+          <option value="contacted">已联系</option>
+          <option value="converted">已转化</option>
+          <option value="closed">已关闭</option>
+        </select>
+      </div>
+      <div class="panel-body" style="overflow-x:auto">
+        <table class="admin-table">
+          <thead>
+            <tr>
+              <th>ID</th><th>联系人</th><th>公司</th><th>意向套餐</th><th>状态</th><th>留言</th><th>备注</th><th>时间</th>
+            </tr>
+          </thead>
+          <tbody id="leads-tbody"></tbody>
+        </table>
+      </div>
+      <div class="pagination" id="leads-pagination"></div>
+    </div>
+  </div>
+
+  <!-- Users Section -->
+  <div id="section-users" class="admin-section">
+    <div class="admin-panel">
+      <div class="panel-header"><h3>用户管理</h3></div>
+      <div class="filter-bar">
+        <input type="text" id="users-search" placeholder="搜索用户名/邮箱/公司..." onkeydown="if(event.key==='Enter')searchUsers()">
+        <button class="btn-sm" onclick="searchUsers()">搜索</button>
+      </div>
+      <div class="panel-body" style="overflow-x:auto">
+        <table class="admin-table">
+          <thead>
+            <tr>
+              <th>ID</th><th>用户名</th><th>邮箱</th><th>公司</th><th>状态</th><th>注册时间</th><th>操作</th>
+            </tr>
+          </thead>
+          <tbody id="users-tbody"></tbody>
+        </table>
+      </div>
+      <div class="pagination" id="users-pagination"></div>
+    </div>
+    <!-- User detail panel -->
+    <div class="admin-panel" id="user-detail-panel" style="display:none">
+      <div class="panel-header"><h3>用户详情</h3></div>
+      <div class="panel-body-padded" id="user-detail-content"></div>
+    </div>
+  </div>
+
+  <!-- Usage Section -->
+  <div id="section-usage" class="admin-section">
+    <div class="admin-panel">
+      <div class="panel-header">
+        <h3>按员工类型统计</h3>
+        <select onchange="loadUsageAnalytics(+this.value)">
+          <option value="7">最近7天</option>
+          <option value="30">最近30天</option>
+          <option value="90">最近90天</option>
+        </select>
+      </div>
+      <div class="chart-container"><canvas id="usage-employee-chart"></canvas></div>
+    </div>
+    <div class="admin-panel">
+      <div class="panel-header"><h3>调用量 Top 用户</h3></div>
+      <div class="panel-body" style="overflow-x:auto">
+        <table class="admin-table">
+          <thead><tr><th>#</th><th>用户名</th><th>邮箱</th><th>调用次数</th></tr></thead>
+          <tbody id="usage-top-users"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+</main>
+</div>
+<script src="/static/js/admin.js"></script>
+</body>
+</html>
