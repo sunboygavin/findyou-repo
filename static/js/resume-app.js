@@ -69,3 +69,39 @@
     sections.forEach(function (s) { navIO.observe(s); });
   }
 })();
+
+/* ---- Demo modal ---- */
+(function () {
+  var modal = document.getElementById('demoModal');
+  if (!modal) return;
+  var frame = document.getElementById('demoModalFrame');
+  var title = document.getElementById('demoModalTitle');
+  var openLink = document.getElementById('demoModalOpen');
+
+  function open(url, label) {
+    frame.src = url;
+    title.textContent = (label || 'Demo') + ' · Live Demo';
+    openLink.href = url;
+    modal.classList.add('open');
+    modal.setAttribute('aria-hidden', 'false');
+    document.body.style.overflow = 'hidden';
+  }
+  function close() {
+    modal.classList.remove('open');
+    modal.setAttribute('aria-hidden', 'true');
+    document.body.style.overflow = '';
+    frame.src = 'about:blank';
+  }
+
+  document.querySelectorAll('[data-demo]').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      open(btn.getAttribute('data-demo'), btn.getAttribute('data-demo-title'));
+    });
+  });
+  modal.querySelectorAll('[data-demo-close]').forEach(function (el) {
+    el.addEventListener('click', close);
+  });
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape' && modal.classList.contains('open')) close();
+  });
+})();

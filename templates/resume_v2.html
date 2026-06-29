@@ -245,7 +245,7 @@ EMPLOYEE_PROMPTS = {
       <div class="feat"><div class="ix">F4</div><h5 data-en="Responsive Front-end">响应式前端</h5><p data-en="Pure HTML/CSS/JS, Apple-style design, full mobile support.">纯 HTML/CSS/JS 实现，Apple 风格设计，完美适配移动端。</p></div>
     </div>
 
-    <a class="demo-btn reveal" href="demos/findyou-demo.html"><span class="play">▶</span> <span data-en="View Findyou demo">查看 Findyou 演示</span></a>
+    <button type="button" class="demo-btn reveal" data-demo="demos/findyou-demo.html" data-demo-title="Findyou"><span class="play">▶</span> <span data-en="View Findyou demo">查看 Findyou 演示</span></button>
 
     <!-- ===== NED — AI × Telecom flagship ===== -->
     <div class="case-tag reveal" style="margin-top:88px;padding-top:64px;border-top:1px solid var(--line-2)"><span data-en="Flagship 02 · AI × Telecom">旗舰作品 02 · AI × 通信</span></div>
@@ -301,7 +301,7 @@ toDisplayCommand(cmd: string): string {
       <div class="feat"><div class="ix">N4</div><h5 data-en="Agent Loop + Multi-model">Agent Loop · 多模型</h5><p data-en="Sense-decide-act loop with Tool Calling; switch across Claude/GPT/Gemini/Ollama.">感知-决策-执行循环 + Tool Calling，Claude/GPT/Gemini/Ollama 可切换。</p></div>
     </div>
 
-    <a class="demo-btn reveal" href="demos/ned-demo.html"><span class="play">▶</span> <span data-en="Watch NED workflow replay">观看 NED 工作流回放</span></a>
+    <button type="button" class="demo-btn reveal" data-demo="demos/ned-demo.html" data-demo-title="NED"><span class="play">▶</span> <span data-en="Watch NED workflow replay">观看 NED 工作流回放</span></button>
   </div>
 </section>
 
@@ -450,6 +450,21 @@ toDisplayCommand(cmd: string): string {
 </footer>
 
 <button class="print-fab" onclick="window.open('print.html','_blank')"><span>⎙</span><span data-en="Print / PDF">打印 / PDF</span></button>
+
+<!-- ===================== DEMO MODAL ===================== -->
+<div class="demo-modal" id="demoModal" aria-hidden="true">
+  <div class="demo-modal-backdrop" data-demo-close></div>
+  <div class="demo-modal-dialog" role="dialog" aria-modal="true" aria-label="Demo">
+    <div class="demo-modal-bar">
+      <span class="demo-modal-title" id="demoModalTitle">Demo</span>
+      <div class="demo-modal-actions">
+        <a class="demo-modal-open" id="demoModalOpen" href="#" target="_blank" rel="noopener" data-en="Open in new tab">新窗口打开 ↗</a>
+        <button class="demo-modal-close" type="button" data-demo-close aria-label="Close">✕</button>
+      </div>
+    </div>
+    <iframe class="demo-modal-frame" id="demoModalFrame" title="Demo preview" loading="lazy"></iframe>
+  </div>
+</div>
 
 <script src="/static/js/resume-app.js"></script>
 </body>
