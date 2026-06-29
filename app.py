@@ -230,6 +230,41 @@ def favicon():
 
 @app.route('/')
 def index():
+    return render_template('resume_v2.html')
+
+
+@app.route('/resume')
+def resume_page():
+    return render_template('resume_v2.html')
+
+
+@app.route('/resume-print')
+def resume_print_page():
+    return render_template('resume_print.html')
+
+
+@app.route('/print.html')
+def print_html_page():
+    return render_template('resume_print.html')
+
+
+@app.route('/index.html')
+def index_html_alias():
+    from flask import redirect
+    return redirect('/')
+
+
+@app.route('/demos/<path:filename>')
+def resume_demos(filename):
+    from flask import send_from_directory
+    return send_from_directory(
+        os.path.join(os.path.dirname(os.path.abspath(__file__)), 'templates', 'demos'),
+        filename,
+    )
+
+
+@app.route('/app')
+def app_page():
     user = get_current_user()
     return render_template('index.html', user=user.username if user else '')
 
@@ -819,6 +854,11 @@ def admin_page(user):
     if user.username not in Config.ADMIN_USERS and not user.is_admin:
         return render_template('index.html', user=user.username), 403
     return render_template('admin.html', user=user.username)
+
+
+@app.route('/resume')
+def resume_page_v2():
+    return render_template('resume_v2.html')
 
 
 @app.route('/api/leads', methods=['GET'])

@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Findyou · AI 数字员工 — 演示</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&family=Noto+Sans+SC:wght@400;500;700;900&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#0a0a0b; --chrome:#141416; --surface:#16161a; --surface-2:#1c1c21;
+  --line:rgba(255,255,255,.10); --line-2:rgba(255,255,255,.06);
+  --text:#f4f4f3; --text-2:#b7b7b5; --text-3:#74748a;
+  --accent:oklch(0.90 0.20 128); --accent-dim:oklch(0.90 0.20 128 / 0.14); --accent-line:oklch(0.90 0.20 128 / .4);
+  --fd:'Space Grotesk','Noto Sans SC',sans-serif;
+  --fs:'Noto Sans SC',sans-serif;
+  --fm:'JetBrains Mono',ui-monospace,monospace;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{background:var(--bg);color:var(--text);font-family:var(--fs);min-height:100vh;
+  display:flex;flex-direction:column;align-items:center;padding:28px 18px 60px;
+  background-image:radial-gradient(rgba(255,255,255,.03) 1px,transparent 1px);background-size:38px 38px;}
+::selection{background:var(--accent);color:#0a0a0b;}
+a{color:inherit;text-decoration:none;}
+
+.top{width:100%;max-width:1080px;display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;gap:16px;flex-wrap:wrap;}
+.back{font-family:var(--fm);font-size:12px;letter-spacing:.1em;color:var(--text-3);display:inline-flex;align-items:center;gap:8px;transition:color .2s;}
+.back:hover{color:var(--accent);}
+.title-wrap{text-align:right;}
+.title-wrap h1{font-family:var(--fd);font-weight:700;font-size:clamp(20px,3vw,30px);letter-spacing:-.02em;}
+.title-wrap p{font-family:var(--fm);font-size:11.5px;color:var(--text-3);letter-spacing:.04em;margin-top:4px;}
+
+.intro{width:100%;max-width:1080px;border:1px solid var(--line);background:var(--chrome);padding:18px 22px;margin-bottom:18px;display:flex;gap:18px;align-items:flex-start;}
+.intro .badge{font-family:var(--fm);font-size:11px;font-weight:700;letter-spacing:.12em;color:#0a0a0b;background:var(--accent);padding:5px 10px;white-space:nowrap;margin-top:2px;}
+.intro p{font-size:13.5px;line-height:1.7;color:var(--text-2);}
+.intro p b{color:#fff;font-weight:600;} .intro p .lime{color:var(--accent);}
+
+/* app shell */
+.app{width:100%;max-width:1080px;height:min(70vh,640px);border:1px solid var(--line);background:var(--surface);
+  display:grid;grid-template-columns:268px 1fr;overflow:hidden;box-shadow:0 30px 80px rgba(0,0,0,.55);}
+@media(max-width:720px){.app{grid-template-columns:1fr;} .side{display:none;}}
+
+/* sidebar */
+.side{border-right:1px solid var(--line);display:flex;flex-direction:column;background:var(--chrome);min-height:0;}
+.brand{display:flex;align-items:center;gap:9px;padding:18px 18px 14px;border-bottom:1px solid var(--line-2);}
+.brand .logo{width:26px;height:26px;border-radius:7px;background:var(--accent);color:#0a0a0b;font-family:var(--fd);font-weight:700;display:flex;align-items:center;justify-content:center;font-size:15px;}
+.brand .nm{font-family:var(--fd);font-weight:600;font-size:16px;letter-spacing:-.01em;}
+.brand .nm small{display:block;font-family:var(--fm);font-size:9px;letter-spacing:.14em;color:var(--text-3);font-weight:400;text-transform:uppercase;}
+.side .lbl{font-family:var(--fm);font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:var(--text-3);padding:16px 18px 8px;}
+.emp-list{flex:1;overflow-y:auto;padding:0 10px 14px;min-height:0;}
+.emp-list::-webkit-scrollbar{width:8px;} .emp-list::-webkit-scrollbar-thumb{background:#26262e;border-radius:8px;}
+.emp{display:flex;align-items:center;gap:11px;padding:10px 10px;border-radius:10px;cursor:pointer;transition:background .18s;position:relative;}
+.emp:hover{background:var(--surface-2);}
+.emp.on{background:var(--accent-dim);}
+.emp.on::before{content:"";position:absolute;left:0;top:9px;bottom:9px;width:3px;background:var(--accent);border-radius:2px;}
+.emp .av{width:36px;height:36px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-family:var(--fd);font-weight:600;font-size:15px;color:var(--text);background:var(--surface-2);flex-shrink:0;border:1px solid var(--line);}
+.emp.on .av{background:var(--accent);color:#0a0a0b;border-color:transparent;}
+.emp .meta{min-width:0;}
+.emp .meta .n{font-size:13.5px;font-weight:600;display:flex;align-items:center;gap:6px;}
+.emp .meta .n .dot{width:6px;height:6px;border-radius:50%;background:var(--accent);}
+.emp .meta .r{font-size:11px;color:var(--text-3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+
+/* chat */
+.chat{display:flex;flex-direction:column;min-height:0;background:var(--bg);}
+.chat-head{display:flex;align-items:center;gap:12px;padding:14px 20px;border-bottom:1px solid var(--line);background:var(--surface);}
+.chat-head .av{width:38px;height:38px;border-radius:10px;background:var(--accent);color:#0a0a0b;display:flex;align-items:center;justify-content:center;font-family:var(--fd);font-weight:700;font-size:16px;}
+.chat-head .who .n{font-family:var(--fd);font-weight:600;font-size:15px;}
+.chat-head .who .r{font-size:11.5px;color:var(--text-3);}
+.chat-head .model{margin-left:auto;font-family:var(--fm);font-size:10.5px;color:var(--text-3);border:1px solid var(--line);padding:5px 10px;border-radius:100px;display:flex;align-items:center;gap:6px;}
+.chat-head .model .d{width:6px;height:6px;border-radius:50%;background:var(--accent);}
+
+.msgs{flex:1;overflow-y:auto;padding:24px 20px;display:flex;flex-direction:column;gap:18px;min-height:0;scroll-behavior:smooth;}
+.msgs::-webkit-scrollbar{width:9px;} .msgs::-webkit-scrollbar-thumb{background:#26262e;border-radius:8px;}
+.row{display:flex;gap:11px;max-width:84%;}
+.row.user{align-self:flex-end;flex-direction:row-reverse;}
+.row .av{width:30px;height:30px;border-radius:9px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-family:var(--fd);font-weight:600;font-size:13px;}
+.row.ai .av{background:var(--surface-2);border:1px solid var(--line);color:var(--text);}
+.row.user .av{background:#2a2a32;color:var(--text-2);}
+.bubble{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:13px 16px;font-size:14px;line-height:1.7;color:var(--text);}
+.row.ai .bubble{border-top-left-radius:4px;}
+.row.user .bubble{background:var(--accent-dim);border-color:var(--accent-line);border-top-right-radius:4px;}
+.bubble p+p{margin-top:9px;}
+.bubble b{font-weight:600;color:#fff;}
+.bubble .lime{color:var(--accent);font-weight:600;}
+.bubble ul{list-style:none;display:grid;gap:7px;margin:9px 0 2px;}
+.bubble li{padding-left:16px;position:relative;color:var(--text-2);font-size:13.5px;}
+.bubble li::before{content:"";position:absolute;left:0;top:9px;width:6px;height:6px;background:var(--accent);border-radius:50%;}
+.bubble li b{color:#fff;}
+.bubble .chart{margin:12px 0 4px;display:grid;gap:9px;}
+.bubble .cbar{display:grid;grid-template-columns:64px 1fr 52px;align-items:center;gap:10px;font-size:12px;}
+.bubble .cbar .cl{color:var(--text-2);font-family:var(--fm);font-size:11px;}
+.bubble .cbar .tk{height:8px;background:var(--surface-2);border-radius:6px;overflow:hidden;}
+.bubble .cbar .fl{height:100%;width:0;background:var(--accent);border-radius:6px;transition:width 1s cubic-bezier(.2,.7,.2,1);}
+.bubble .cbar .cv{font-family:var(--fm);font-size:11px;color:var(--accent);text-align:right;}
+.bubble .note{margin-top:11px;font-size:12.5px;color:var(--text-3);border-left:2px solid var(--accent-line);padding-left:11px;}
+.cursor{display:inline-block;width:7px;height:14px;background:var(--accent);vertical-align:-2px;margin-left:1px;animation:bl 1s steps(1) infinite;}
+@keyframes bl{50%{opacity:0;}}
+.typing{display:inline-flex;gap:4px;padding:4px 2px;}
+.typing i{width:7px;height:7px;border-radius:50%;background:var(--text-3);animation:tp 1.2s infinite;}
+.typing i:nth-child(2){animation-delay:.2s;} .typing i:nth-child(3){animation-delay:.4s;}
+@keyframes tp{0%,60%,100%{opacity:.3;transform:translateY(0);}30%{opacity:1;transform:translateY(-4px);}}
+
+.compose{padding:14px 20px;border-top:1px solid var(--line);background:var(--surface);display:flex;gap:10px;align-items:center;}
+.compose .box{flex:1;background:var(--bg);border:1px solid var(--line);border-radius:100px;padding:11px 18px;color:var(--text-3);font-size:13px;}
+.compose .send{width:40px;height:40px;border-radius:50%;background:var(--accent);color:#0a0a0b;border:none;display:flex;align-items:center;justify-content:center;font-size:17px;cursor:default;}
+.hint{width:100%;max-width:1080px;font-family:var(--fm);font-size:11px;color:var(--text-3);margin-top:14px;text-align:center;letter-spacing:.03em;}
+.hint b{color:var(--accent);}
+</style>
+</head>
+<body>
+
+<div class="top">
+  <a class="back" href="../index.html">‹ <span>返回简历</span></a>
+  <div class="title-wrap">
+    <h1>Findyou · AI 数字员工</h1>
+    <p>Enterprise AI Digital-Workforce — 演示</p>
+  </div>
+</div>
+
+<div class="intro">
+  <span class="badge">DEMO</span>
+  <p><b>8 大岗位 AI 数字员工</b>，云上 SaaS + 内网私有化双轨部署，<span class="lime">成本仅为真人的十分之一</span>。每位员工拥有独立人格与专业能力，基于大模型实现真实流式对话。本演示展示由 AI 撰写的对话与分析内容 —— <b>需求、架构、前后端到部署全程独立完成</b>。</p>
+</div>
+
+<div class="app">
+  <aside class="side">
+    <div class="brand">
+      <div class="logo">F</div>
+      <div class="nm">Findyou<small>AI Workforce</small></div>
+    </div>
+    <div class="lbl">我的 AI 团队 · 8 人</div>
+    <div class="emp-list" id="empList"></div>
+  </aside>
+
+  <section class="chat">
+    <div class="chat-head" id="chatHead"></div>
+    <div class="msgs" id="msgs"></div>
+    <div class="compose">
+      <div class="box" id="placeholder">向你的 AI 员工提问…</div>
+      <button class="send">↑</button>
+    </div>
+  </section>
+</div>
+
+<div class="hint">演示自动播放 · 点击左侧任意 <b>AI 员工</b> 切换并查看其专业能力</div>
+
+<script>
+(function(){
+  var EMP=[
+    {id:'max',av:'M',n:'Max',r:'数据分析师',q:'帮我分析上季度各区域销售数据，找出增长机会',
+     a:[{p:'已完成上季度数据分析。整体营收 <b>同比 +18.6%</b>，但区域分化明显，以下是核心结论：'},
+        {chart:[['华东',92],['华南',76],['华北',58],['西南',41],['华中',33]]},
+        {bullets:['<b>华东</b>持续领跑，贡献 <b>34%</b> 营收，但环比增速放缓至 6%，已近饱和','<b>西南</b>环比 <span class="lime">+47%</span>，为增速最快区域，渠道下沉红利显著','<b>华中</b>转化率仅 1.8%，低于均值 3.1%，存在明显优化空间']},
+        {note:'建议：将 Q3 增量预算向西南/华中倾斜，并对华中落地页与跟进话术做 A/B 测试。'}]},
+    {id:'ada',av:'A',n:'Ada',r:'财务会计',q:'这个月的费用结构有什么异常吗？',
+     a:[{p:'本月费用结构已核对，<b>总支出环比 +9.2%</b>，主要异常如下：'},
+        {bullets:['市场费用超预算 <b>14%</b>，集中在两次线下活动，建议复核 ROI','差旅报销中有 3 笔缺少合规凭证，已标记待补','云服务支出连续 3 个月递增，建议评估资源闲置率']},
+        {note:'整体现金流健康，建议下月对市场费用设置分级审批阈值。'}]},
+    {id:'shield',av:'S',n:'Shield',r:'安全顾问',q:'帮我做一次基础安全风险自查',
+     a:[{p:'已完成基础安全自查，发现 <b>2 项中风险</b>、3 项低风险：'},
+        {bullets:['<b>中风险</b>：管理后台未启用双因素认证（2FA）','<b>中风险</b>：3 个对外端口未设访问白名单','低风险：依赖库存在 5 个可升级的安全补丁']},
+        {note:'优先级建议：本周内开启 2FA + 收敛公网端口，可消除 80% 的暴露面。'}]},
+    {id:'kai',av:'K',n:'Kai',r:'销售顾问',q:'帮我梳理这条高意向商机的跟进策略',
+     a:[{p:'已分析该商机画像，<b>成单概率约 65%</b>，建议跟进路径：'},
+        {bullets:['决策链已识别：技术负责人（推动者）+ CFO（审批人）','核心顾虑为<b>实施周期</b>，建议提供同行业 2 周上线案例','给出阶梯报价，锁定季度末签约可享 9 折']},
+        {note:'下一步：48 小时内安排一次面向 CFO 的 ROI 测算演示。'}]},
+    {id:'nova',av:'N',n:'Nova',r:'内容创作',q:'给新品写 3 条小红书种草标题',
+     a:[{p:'已围绕「省心 + 高效」卖点产出 3 条标题，附风格说明：'},
+        {bullets:['「打工人续命神器，我提前下班全靠它 ☕」<span class="lime">— 情绪共鸣型</span>','「测评 10 款后，这款是唯一回购的 ✅」<span class="lime">— 信任背书型</span>','「月薪 5k 也能拥有的高级感好物 ✨」<span class="lime">— 价格锚点型</span>']},
+        {note:'建议首发情绪共鸣型，配 9 宫格使用场景图，转化通常更高。'}]},
+    {id:'lex',av:'L',n:'Lex',r:'法务顾问',q:'帮我审一下这份采购合同的风险点',
+     a:[{p:'已完成合同初审，识别出 <b>3 处需重点关注条款</b>：'},
+        {bullets:['付款条款为「先款后货」，建议改为分期并绑定验收节点','违约责任仅约束乙方，缺少甲方迟延付款的对等条款','知识产权归属表述模糊，建议明确成果权属与使用范围']},
+        {note:'风险等级：中。建议修订上述 3 条后再签署，可显著降低履约纠纷概率。'}]},
+    {id:'eva',av:'E',n:'Eva',r:'行政助理',q:'帮我把今天的会议安排和待办理一下',
+     a:[{p:'已为你整理今日日程，共 <b>3 个会议、5 项待办</b>：'},
+        {bullets:['10:00 产品周会（需准备上周数据，已提醒 Max）','14:30 客户对接（会议室 B 已预订）','优先待办：回复供应商报价、提交月度行政预算']},
+        {note:'已为每个会议预留 15 分钟缓冲，避免连续会议疲劳。'}]},
+    {id:'mia',av:'H',n:'Mia',r:'HR 专员',q:'帮我筛选这批后端工程师简历',
+     a:[{p:'已筛选 <b>28 份简历</b>，按岗位匹配度排序，推荐进入面试 6 人：'},
+        {bullets:['Top 匹配：3 人具备高并发 + 微服务实战，强烈推荐','潜力候选：2 人经验略浅但成长曲线陡，建议技术初面','已自动过滤明显不符项（学历/年限/技术栈）共 14 份']},
+        {note:'建议本周安排技术初面，我可同步生成结构化面试评分表。'}]}
+  ];
+
+  var empList=document.getElementById('empList');
+  var msgs=document.getElementById('msgs');
+  var head=document.getElementById('chatHead');
+  var runId=0;
+
+  EMP.forEach(function(e,i){
+    var d=document.createElement('div');
+    d.className='emp'+(i===0?' on':''); d.dataset.id=e.id;
+    d.innerHTML='<div class="av">'+e.av+'</div><div class="meta"><div class="n">'+e.n+
+      ' <span class="dot"></span></div><div class="r">'+e.r+'</div></div>';
+    d.onclick=function(){select(e.id);};
+    empList.appendChild(d);
+  });
+
+  function sleep(ms){return new Promise(function(res){
+    var left=ms,my=runId,id=setInterval(function(){
+      if(my!==runId){clearInterval(id);return res();}
+      left-=40; if(left<=0){clearInterval(id);return res();}
+    },40);});}
+  function bottom(){msgs.scrollTop=msgs.scrollHeight;}
+
+  function blockHTML(b){
+    if(b.p) return '<p>'+b.p+'</p>';
+    if(b.bullets) return '<ul>'+b.bullets.map(function(x){return '<li>'+x+'</li>';}).join('')+'</ul>';
+    if(b.note) return '<div class="note">'+b.note+'</div>';
+    if(b.chart) return '<div class="chart">'+b.chart.map(function(c){
+      return '<div class="cbar"><span class="cl">'+c[0]+'</span><span class="tk"><span class="fl" data-w="'+c[1]+'"></span></span><span class="cv">'+c[1]+'</span></div>';
+    }).join('')+'</div>';
+    return '';
+  }
+  function fullBubble(e){
+    return '<div class="row ai"><div class="av">'+e.av+'</div><div class="bubble">'+
+      e.a.map(blockHTML).join('')+'</div></div>';
+  }
+  function addUser(text){
+    var r=document.createElement('div'); r.className='row user';
+    r.innerHTML='<div class="av">你</div><div class="bubble"><p>'+text+'</p></div>';
+    msgs.appendChild(r); bottom();
+  }
+
+  async function select(id, instant){
+    var e=EMP.filter(function(x){return x.id===id;})[0];
+    var my=++runId;
+    document.querySelectorAll('.emp').forEach(function(x){x.classList.toggle('on',x.dataset.id===id);});
+    head.innerHTML='<div class="av">'+e.av+'</div><div class="who"><div class="n">'+e.n+
+      '</div><div class="r">'+e.r+'</div></div><div class="model"><span class="d"></span>DeepSeek · 在线</div>';
+    msgs.innerHTML='';
+    document.getElementById('placeholder').textContent='向 '+e.n+' 提问…';
+
+    if(instant){ addUser(e.q); msgs.insertAdjacentHTML('beforeend', fullBubble(e));
+      msgs.querySelectorAll('.fl').forEach(function(f){f.style.width=f.dataset.w+'%';}); bottom(); return; }
+
+    await sleep(300); if(my!==runId)return;
+    addUser(e.q); await sleep(550); if(my!==runId)return;
+
+    // typing indicator
+    var ti=document.createElement('div'); ti.className='row ai';
+    ti.innerHTML='<div class="av">'+e.av+'</div><div class="bubble"><span class="typing"><i></i><i></i><i></i></span></div>';
+    msgs.appendChild(ti); bottom(); await sleep(900); if(my!==runId){return;} ti.remove();
+
+    // assistant bubble, stream blocks
+    var row=document.createElement('div'); row.className='row ai';
+    row.innerHTML='<div class="av">'+e.av+'</div><div class="bubble"></div>';
+    msgs.appendChild(row); var bub=row.querySelector('.bubble'); bottom();
+
+    for(var bi=0;bi<e.a.length;bi++){
+      if(my!==runId)return;
+      var b=e.a[bi];
+      if(b.chart){
+        bub.insertAdjacentHTML('beforeend', blockHTML(b)); bottom();
+        await sleep(120);
+        var fls=bub.querySelectorAll('.fl'); 
+        for(var k=0;k<fls.length;k++){ if(my!==runId)return; fls[k].style.width=fls[k].dataset.w+'%'; await sleep(160);}
+        await sleep(300); continue;
+      }
+      // type text/bullets/note progressively by revealing characters
+      var holder=document.createElement('div'); bub.appendChild(holder);
+      var html=blockHTML(b);
+      await typeHTML(holder, html, my); if(my!==runId)return;
+      await sleep(260);
+    }
+  }
+
+  // reveal an HTML string char-by-char (tags inserted whole)
+  async function typeHTML(el, html, my){
+    var i=0, out='';
+    var cur='<span class="cursor"></span>';
+    while(i<html.length){
+      if(my!==runId)return;
+      if(html[i]==='<'){ var j=html.indexOf('>',i); out+=html.slice(i,j+1); i=j+1; }
+      else { out+=html[i]; i++; if(i%2===0){ el.innerHTML=out+cur; bottom(); await sleep(16);} }
+    }
+    el.innerHTML=out;
+  }
+
+  select('max');
+})();
+</script>
+</body>
+</html>

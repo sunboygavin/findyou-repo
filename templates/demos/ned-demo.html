@@ -1,0 +1,396 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NED · AI 网络设备运维 — 演示</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&family=Noto+Sans+SC:wght@400;500;700;900&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#0a0a0b; --chrome:#141416; --line:rgba(255,255,255,.10);
+  --term-bg:#101019; --term-bg2:#0b0b12;
+  --magenta:#ff5c8a; --green:#5ad67d; --cyan:#5fa8ff; --blue:#6cb6ff;
+  --gray:#c7c7d2; --dim:#74748a; --yellow:#ffc24d; --red:#ff5b6e;
+  --accent:oklch(0.90 0.20 128); --accent-dim:oklch(0.90 0.20 128 / 0.14);
+  --fd:'Space Grotesk','Noto Sans SC',sans-serif;
+  --fs:'Noto Sans SC',sans-serif;
+  --fm:'JetBrains Mono',ui-monospace,monospace;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{background:var(--bg);color:#f4f4f3;font-family:var(--fs);min-height:100vh;
+  display:flex;flex-direction:column;align-items:center;padding:28px 18px 60px;
+  background-image:radial-gradient(rgba(255,255,255,.03) 1px,transparent 1px);background-size:38px 38px;}
+::selection{background:var(--accent);color:#0a0a0b;}
+a{color:inherit;text-decoration:none;}
+
+.top{width:100%;max-width:1080px;display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;gap:16px;flex-wrap:wrap;}
+.back{font-family:var(--fm);font-size:12px;letter-spacing:.1em;color:var(--dim);display:inline-flex;align-items:center;gap:8px;transition:color .2s;}
+.back:hover{color:var(--accent);}
+.title-wrap{text-align:right;}
+.title-wrap h1{font-family:var(--fd);font-weight:700;font-size:clamp(20px,3vw,30px);letter-spacing:-.02em;}
+.title-wrap p{font-family:var(--fm);font-size:11.5px;color:var(--dim);letter-spacing:.04em;margin-top:4px;}
+
+/* intro strip */
+.intro{width:100%;max-width:1080px;border:1px solid var(--line);background:var(--chrome);padding:18px 22px;margin-bottom:18px;display:flex;gap:18px;align-items:flex-start;}
+.intro .badge{font-family:var(--fm);font-size:11px;font-weight:700;letter-spacing:.12em;color:#0a0a0b;background:var(--accent);padding:5px 10px;white-space:nowrap;margin-top:2px;}
+.intro p{font-size:13.5px;line-height:1.7;color:var(--gray);}
+.intro p b{color:#fff;font-weight:600;}
+.intro p .lime{color:var(--accent);}
+
+/* terminal window */
+.win{width:100%;max-width:1080px;border:1px solid var(--line);background:var(--term-bg);box-shadow:0 30px 80px rgba(0,0,0,.55);overflow:hidden;}
+.bar{display:flex;align-items:center;gap:12px;padding:12px 16px;background:var(--chrome);border-bottom:1px solid var(--line);}
+.lights{display:flex;gap:7px;}
+.lights i{width:12px;height:12px;border-radius:50%;display:inline-block;}
+.lights i:nth-child(1){background:#ff5f57;} .lights i:nth-child(2){background:#febc2e;} .lights i:nth-child(3){background:#28c840;}
+.bar .name{font-family:var(--fm);font-size:12px;color:var(--dim);letter-spacing:.04em;}
+.bar .chap{margin-left:auto;display:flex;gap:6px;}
+.bar .chap span{font-family:var(--fm);font-size:10.5px;letter-spacing:.06em;color:var(--dim);border:1px solid var(--line);padding:4px 9px;border-radius:100px;transition:all .3s;}
+.bar .chap span.on{color:#0a0a0b;background:var(--accent);border-color:transparent;font-weight:700;}
+
+#screen{height:min(64vh,620px);overflow-y:auto;padding:20px 22px 40px;font-family:var(--fm);font-size:13px;line-height:1.62;color:var(--gray);scroll-behavior:smooth;}
+#screen::-webkit-scrollbar{width:9px;} #screen::-webkit-scrollbar-thumb{background:#26263a;border-radius:8px;}
+#screen .ln{white-space:pre-wrap;word-break:break-word;}
+.cmd{color:var(--magenta);} .ok{color:var(--green);} .cy{color:var(--cyan);font-weight:600;}
+.bl{color:var(--blue);} .ip{color:var(--magenta);} .dim{color:var(--dim);} .warn{color:var(--yellow);}
+.red{color:var(--red);} .wt{color:#eef;} .gn{color:var(--green);}
+.prompt{color:var(--magenta);font-weight:600;}
+.cursor{display:inline-block;width:8px;height:15px;background:var(--accent);vertical-align:-2px;animation:bl 1s steps(1) infinite;margin-left:1px;}
+@keyframes bl{50%{opacity:0;}}
+
+/* device selector panel */
+.panel{border:1px solid #2a2a40;background:var(--term-bg2);margin:8px 0;padding:14px 16px;}
+.panel .ph{color:var(--cyan);font-weight:600;margin-bottom:8px;}
+.panel table{width:100%;border-collapse:collapse;font-size:12.5px;}
+.panel th{text-align:left;color:var(--dim);font-weight:400;padding:3px 10px 8px 0;border-bottom:1px solid #23233a;}
+.panel td{padding:3px 10px 3px 0;color:var(--gray);}
+.panel tr.sel td{background:#1d59c4;color:#fff;}
+.panel tr.sel td .ipv{color:#cfe0ff;}
+.panel td .ipv{color:var(--magenta);}
+.panel .pfoot{color:var(--dim);margin-top:10px;font-size:12px;}
+.panel .keys{color:var(--dim);margin-top:6px;font-size:11.5px;}
+.panel .keys b{color:var(--cyan);font-weight:600;}
+
+/* report card */
+.report{border:1px solid #2a2a40;background:var(--term-bg2);margin:10px 0;padding:22px 24px;font-family:var(--fs);}
+.report h2{font-family:var(--fd);font-weight:700;font-size:19px;color:#fff;display:flex;align-items:center;gap:10px;margin-bottom:4px;}
+.report h2 .tag{font-family:var(--fm);font-size:10px;font-weight:700;letter-spacing:.1em;color:#0a0a0b;background:var(--accent);padding:3px 8px;}
+.report .meta{font-family:var(--fm);font-size:11px;color:var(--dim);margin-bottom:18px;}
+.report h3{font-family:var(--fm);font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--accent);margin:22px 0 12px;display:flex;align-items:center;gap:9px;}
+.report h3::before{content:"";width:16px;height:2px;background:var(--accent);}
+.report table{width:100%;border-collapse:collapse;font-size:12.5px;margin-bottom:6px;}
+.report th{text-align:left;font-family:var(--fm);font-size:10.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--dim);font-weight:400;padding:8px 12px;border-bottom:1px solid #26263c;}
+.report td{padding:8px 12px;border-bottom:1px solid #1a1a2a;color:var(--gray);}
+.report td b{color:#fff;font-weight:600;}
+.report .kv td:first-child{color:var(--dim);width:42%;}
+.report .assess{font-size:13px;line-height:1.75;color:var(--gray);background:var(--accent-dim);border-left:2px solid var(--accent);padding:14px 16px;margin-top:8px;}
+.report .assess b{color:#fff;}
+.badge{font-family:var(--fm);font-size:11px;padding:2px 7px;border-radius:3px;white-space:nowrap;}
+.b-ok{color:var(--green);} .b-warn{color:var(--yellow);} .b-red{color:var(--red);font-weight:600;} .b-dim{color:var(--dim);}
+.ipmono{font-family:var(--fm);color:var(--magenta);font-size:12px;}
+
+/* controls */
+.ctl{width:100%;max-width:1080px;display:flex;gap:10px;align-items:center;margin-top:16px;flex-wrap:wrap;}
+.ctl button{font-family:var(--fm);font-size:12px;letter-spacing:.04em;color:var(--gray);background:var(--chrome);border:1px solid var(--line);padding:10px 16px;cursor:pointer;transition:all .2s;display:inline-flex;align-items:center;gap:7px;}
+.ctl button:hover{border-color:var(--accent);color:var(--accent);}
+.ctl button.primary{background:var(--accent);color:#0a0a0b;border-color:transparent;font-weight:700;}
+.ctl .sp{margin-left:auto;display:flex;gap:6px;align-items:center;}
+.ctl .sp span{font-family:var(--fm);font-size:11px;color:var(--dim);}
+.ctl .speed{display:inline-flex;border:1px solid var(--line);}
+.ctl .speed button{border:none;border-right:1px solid var(--line);padding:8px 12px;}
+.ctl .speed button:last-child{border-right:none;}
+.ctl .speed button.on{background:var(--accent);color:#0a0a0b;font-weight:700;}
+</style>
+</head>
+<body>
+
+<div class="top">
+  <a class="back" href="../index.html">‹ <span>返回简历</span></a>
+  <div class="title-wrap">
+    <h1>NED · 网络设备 AI 运维</h1>
+    <p>Network Equipment Director — 演示回放</p>
+  </div>
+</div>
+
+<div class="intro">
+  <span class="badge">DEMO</span>
+  <p>基于 <b>Claude Code 源码反编译改造</b>，为本不支持 AI 的传统网络设备（华为 / 中兴 / H3C / Nokia）赋予 <span class="lime">AI 原生运维能力</span>。下方为真实工作流回放：<b>自然语言描述意图 → AI 推荐厂家命令 → SSH 跳板机执行 → 自动生成隐患排查报告</b>。本演示用于说明能力，数据取自真实设备采集。</p>
+</div>
+
+<div class="win">
+  <div class="bar">
+    <span class="lights"><i></i><i></i><i></i></span>
+    <span class="name">root@ned-code:~ — ned chat</span>
+    <span class="chap">
+      <span data-c="1" class="on">① 进入对话</span>
+      <span data-c="2">② 自然语言诊断</span>
+      <span data-c="3">③ 生成报告</span>
+    </span>
+  </div>
+  <div id="screen"></div>
+</div>
+
+<div class="ctl">
+  <button class="primary" id="replay">↻ 重新播放</button>
+  <button id="pause">⏸ 暂停</button>
+  <button id="skip">⏭ 跳到结尾</button>
+  <div class="sp">
+    <span>速度</span>
+    <span class="speed" id="speed">
+      <button data-s="1" class="on">1×</button>
+      <button data-s="2">2×</button>
+      <button data-s="4">4×</button>
+    </span>
+  </div>
+</div>
+
+<script>
+(function(){
+  var screen=document.getElementById('screen');
+  var speed=1, paused=false, runId=0, skip=false;
+
+  function setChap(n){document.querySelectorAll('.chap span').forEach(function(s){s.classList.toggle('on',+s.dataset.c===n);});}
+  function bottom(){screen.scrollTop=screen.scrollHeight;}
+  function sleep(ms){
+    return new Promise(function(res){
+      var left=ms/speed, my=runId;
+      (function tick(){
+        if(my!==runId) return res();        // aborted
+        if(skip) return res();
+        if(!paused) left-=16;
+        if(left<=0) return res();
+        requestAnimationFrame(tick);
+      })();
+    });
+  }
+  function addLine(html,cls){
+    var d=document.createElement('div');
+    d.className='ln'+(cls?' '+cls:''); d.innerHTML=html||'';
+    screen.appendChild(d); bottom(); return d;
+  }
+  // typewriter into a line; prefix = static html prompt
+  async function typeLine(prefix, text, cls, per){
+    var d=addLine(prefix||'', cls);
+    var span=document.createElement('span'); d.appendChild(span);
+    var cur=document.createElement('span'); cur.className='cursor'; d.appendChild(cur);
+    for(var i=0;i<text.length;i++){
+      if(skip){span.textContent=text;break;}
+      span.textContent+=text[i]; bottom();
+      await sleep(per||38);
+      if(runId!==thisRun) return;
+    }
+    cur.remove();
+    return d;
+  }
+  var thisRun=0;
+
+  function clear(){screen.innerHTML='';}
+
+  // ---- content blocks ----
+  var HELP =
+'<span class="cy">可用命令:</span>\n'+
+'  /help          显示帮助\n'+
+'  /exit          退出\n'+
+'  /models        切换模型\n'+
+'  /device        选择设备（交互式列表）\n'+
+'  /device &lt;ip&gt;   直接设置当前设备\n'+
+'  /bgp           分析当前设备的 BGP 状态\n'+
+'  /clear         清空对话历史\n\n'+
+'<span class="cy">配置管理:</span>\n'+
+'  /config pull            拉取当前设备配置\n'+
+'  /config status          查看配置状态\n'+
+'  /config list            列出所有配置\n'+
+'  /config show            显示配置内容\n'+
+'  /config extract &lt;type&gt;  提取配置部分 (interface/bgp/route/vlan)\n'+
+'  /config delete          删除当前设备配置\n'+
+'  /config cleanup         清理过期配置';
+
+  var DEVICES=[
+    ['1','huawei-66','172.26.73.66','huawei'],
+    ['2','huawei-69','172.26.73.69','huawei'],
+    ['3','huawei-65','172.26.73.65','huawei'],
+    ['4','huawei-68','172.26.73.68','huawei'],
+    ['5','huawei-67','172.26.73.67','huawei'],
+    ['6','zte-90','172.26.73.90','zte'],
+    ['7','zte-91','172.26.73.91','zte'],
+    ['8','zte-231','172.29.43.231','zte'],
+    ['9','h3c-13','172.26.73.13','h3c'],
+    ['10','h3c-15','172.26.73.15','h3c']
+  ];
+  function devicePanel(){
+    var rows=DEVICES.map(function(r){
+      var sel=r[0]==='4'?' class="sel"':'';
+      return '<tr'+sel+'><td>'+r[0]+'</td><td>'+r[1]+'</td><td><span class="ipv">'+r[2]+'</span></td><td>'+r[3]+'</td><td>设备查询模式</td></tr>';
+    }).join('');
+    return '<div class="panel">'+
+      '<div class="ph">🖱 设备选择器　<span style="color:var(--dim);font-weight:400">总设备数: 12</span></div>'+
+      '<table><thead><tr><th>序号</th><th>主机名</th><th>IP 地址</th><th>厂家</th><th>模式</th></tr></thead>'+
+      '<tbody>'+rows+'</tbody></table>'+
+      '<div class="pfoot">第 1/2 页（共 12 台设备）</div>'+
+      '<div class="keys"><b>↑/↓</b> 选择　<b>←/→</b> 翻页　<b>Enter</b> 确认　<b>/</b> 搜索　<b>f</b> 筛选　<b>q/Esc</b> 取消</div>'+
+      '</div>';
+  }
+
+  var PEER_TABLE =
+'<span class="dim">— display bgp peer —</span>\n'+
+'BGP local router ID : <span class="ip">221.179.170.16</span>\n'+
+'Local AS number : 100\n'+
+'Total number of peers : 9        Peers in established state : 9\n\n'+
+'<span class="dim">Peer            V    AS  MsgRcvd  MsgSent OutQ Up/Down   State       PrefRcv</span>\n'+
+'<span class="ip">10.204.1.1</span>      4   100   17399    19522    0 0281h13m  <span class="gn">Established</span>       1\n'+
+'<span class="ip">105.15.17.2</span>     4   200    5018     5920    0 0041h46m  <span class="gn">Established</span>     100\n'+
+'<span class="ip">192.168.201.5</span>   4   100   26927    31112    0 0448h44m  <span class="gn">Established</span>       0\n'+
+'<span class="ip">221.179.170.3</span>   4   100   31567    31146    0 0448h44m  <span class="gn">Established</span>     235\n'+
+'<span class="ip">221.179.170.4</span>   4   100   20178    19524    0 0281h13m  <span class="gn">Established</span>      23\n'+
+'<span class="ip">221.179.170.13</span>  4   100   42337    42185    0 0608h16m  <span class="gn">Established</span>     102\n'+
+'<span class="ip">221.179.170.14</span>  4   100   38016    42215    0 0608h12m  <span class="gn">Established</span>       0\n'+
+'<span class="ip">221.179.170.15</span>  4   100   49354    42168    0 0608h09m  <span class="gn">Established</span>       2\n'+
+'<span class="ip">221.179.170.19</span>  4   100   10127    11848    0 0084h06m  <span class="gn">Established</span>     232\n'+
+'<span class="dim">&lt;AS1-P6-16-HW&gt;</span>';
+
+  var PEERS=[
+    ['10.204.1.1','IBGP','100','281h13m','1','<span class="badge b-warn">⚠ PrefRcv 极低</span>'],
+    ['105.15.17.2','<b>EBGP</b>','<b>200</b>','41h46m','100','<span class="badge b-warn">⚠ 运行短 · UpCount=2</span>'],
+    ['192.168.201.5','IBGP','100','448h44m','<b>0</b>','<span class="badge b-red">● 零路由接收</span>'],
+    ['221.179.170.3','IBGP','100','448h44m','235','<span class="badge b-dim">—</span>'],
+    ['221.179.170.4','IBGP','100','281h13m','23','<span class="badge b-dim">—</span>'],
+    ['221.179.170.13','IBGP','100','608h16m','102','<span class="badge b-dim">—</span>'],
+    ['221.179.170.14','IBGP','100','608h12m','<b>0</b>','<span class="badge b-red">● 零路由接收</span>'],
+    ['221.179.170.15','IBGP','100','608h09m','2','<span class="badge b-warn">⚠ PrefRcv 极低</span>'],
+    ['221.179.170.19','IBGP','100','84h06m','232','<span class="badge b-warn">⚠ 运行时间短</span>']
+  ];
+  function reportCard(){
+    var peerRows=PEERS.map(function(p){
+      return '<tr><td><span class="ipmono">'+p[0]+'</span></td><td>'+p[1]+'</td><td>'+p[2]+'</td><td><span class="b-ok">Established</span></td><td>'+p[3]+'</td><td>'+p[4]+'</td><td>'+p[5]+'</td></tr>';
+    }).join('');
+    return '<div class="report">'+
+      '<h2><span class="tag">AI</span> BGP 运行状态隐患排查报告</h2>'+
+      '<div class="meta">由 NED AI 引擎自动生成 · huawei-68 · 2026-04-19 05:50 (北京时间)</div>'+
+
+      '<h3>设备基本信息</h3>'+
+      '<table class="kv"><tbody>'+
+      '<tr><td>主机名</td><td><b>huawei-68</b></td></tr>'+
+      '<tr><td>管理 IP</td><td><span class="ipmono">172.26.73.68</span></td></tr>'+
+      '<tr><td>设备厂商</td><td>Huawei</td></tr>'+
+      '<tr><td>本地 AS 号</td><td>100</td></tr>'+
+      '<tr><td>BGP Router ID</td><td><span class="ipmono">221.179.170.16</span></td></tr>'+
+      '</tbody></table>'+
+
+      '<h3>一、执行概要</h3>'+
+      '<table><thead><tr><th>指标</th><th>数值</th><th>状态</th></tr></thead><tbody>'+
+      '<tr><td>BGP 邻居总数</td><td><b>9</b></td><td><span class="b-dim">—</span></td></tr>'+
+      '<tr><td>Established 状态邻居</td><td><b>9</b></td><td><span class="b-ok">✅ 全部正常</span></td></tr>'+
+      '<tr><td>IBGP 邻居</td><td>8</td><td>含 1 个纯 IPv6 邻居</td></tr>'+
+      '<tr><td>EBGP 邻居</td><td>1</td><td>AS 200</td></tr>'+
+      '<tr><td>邻居整体可用率</td><td><b>100%</b></td><td><span class="b-ok">✅</span></td></tr>'+
+      '</tbody></table>'+
+      '<div class="assess"><b>总体评估：</b>BGP 控制平面运行基本稳定，但存在 <b>3 项中风险隐患</b> 和 <b>2 项低风险优化项</b>，需关注 EBGP 邻居稳定性、路由黑洞风险及安全加固。</div>'+
+
+      '<h3>二、邻居状态概览</h3>'+
+      '<table><thead><tr><th>邻居地址</th><th>类型</th><th>远端AS</th><th>状态</th><th>运行时长</th><th>接收前缀</th><th>异常标记</th></tr></thead><tbody>'+
+      peerRows+
+      '</tbody></table>'+
+
+      '<h3>三、关键指标异常汇总</h3>'+
+      '<table><thead><tr><th>检测项</th><th>发现</th><th>涉及邻居</th></tr></thead><tbody>'+
+      '<tr><td>零路由接收邻居</td><td><span class="b-red">2 个</span></td><td><span class="ipmono">192.168.201.5 · 221.179.170.14</span></td></tr>'+
+      '<tr><td>PrefRcv 极低邻居</td><td><span class="b-warn">2 个</span></td><td><span class="ipmono">10.204.1.1 · 221.179.170.15</span></td></tr>'+
+      '<tr><td>运行时长偏短邻居</td><td><span class="b-warn">2 个</span></td><td><span class="ipmono">105.15.17.2 · 221.179.170.19</span></td></tr>'+
+      '</tbody></table>'+
+      '</div>';
+  }
+
+  // ---- the play sequence ----
+  // ---- the play sequence (declarative step list) ----
+  var P0='<span class="dim">root@iZ2ze337...:~/ned-code# </span>';
+  var PR='<span class="prompt">ned&gt; </span>';
+  var SEQ=[
+    {chap:1},
+    {type:'./ned chat', pre:P0, per:55},
+    {line:'<span class="dim">正在启动 NED, 请稍候...</span>'}, {wait:500},
+    {line:''}, {line:'<span class="cy">🌐 NED AI Chat 模式</span>'},
+    {line:'<span class="dim">输入 /help 查看命令，/exit 退出</span>'}, {line:''},
+    {line:'<span class="dim">正在初始化 AI 引擎和工具集...</span>'}, {wait:450},
+    {line:'<span class="ok">✓ 初始化完成</span>'}, {wait:350},
+    {type:'/help', pre:PR, per:60}, {wait:200}, {line:HELP}, {wait:700},
+    {type:'/device', pre:PR, per:60}, {wait:250},
+    {panel:1}, {wait:1300},
+    {line:'<span class="dim">▸ Enter — 确认选择 huawei-68</span>'}, {wait:500},
+    {line:'<span class="ok">✓ 已切换到设备: huawei-68 (<span class="ip">172.26.73.68</span>) [huawei]</span>'},
+    {line:'<span class="warn">⚠ 未找到配置文件　</span><span class="dim">提示: /config pull 可拉取配置后离线分析</span>'}, {wait:900},
+
+    {chap:2},
+    {type:'查询 BGP 信息，然后出个隐患排查报告', pre:PR, cls:'cmd', per:46}, {wait:400},
+    {line:'<span class="cy">🔍 设备诊断: huawei-68 (<span class="ip">172.26.73.68</span>)</span>'}, {wait:400},
+    {line:'<span class="ok">✓ 推荐 3 条命令 ..</span>'}, {wait:250},
+    {line:'  <span class="bl">display bgp peer</span> <span class="dim">— 查看邻居状态概览，排查邻居无法建立或频繁抖动</span>'}, {wait:260},
+    {line:'  <span class="bl">display bgp peer verbose</span> <span class="dim">— 查看协商/定时器/策略，排查协商失败等隐患</span>'}, {wait:260},
+    {line:'  <span class="bl">display bgp routing-table statistics</span> <span class="dim">— 路由统计，排查路由表溢出或不稳定</span>'}, {wait:500},
+    {line:'<span class="ok">✓ 命令执行完成 @172.26.73.68 ...</span>'}, {wait:250},
+    {line:'  <span class="ok">✓</span> display bgp peer <span class="dim">(15 行)</span>'}, {wait:220},
+    {line:'  <span class="ok">✓</span> display bgp peer verbose <span class="dim">(501 行)</span>'}, {wait:220},
+    {line:'  <span class="ok">✓</span> display bgp routing-table statistics <span class="dim">(3 行)</span>'}, {wait:500},
+    {line:''}, {line:PEER_TABLE}, {wait:700}, {line:''},
+    {line:'<span class="dim">— display bgp routing-table statistics —</span>\nTotal Number of Routes: 697\n<span class="dim">&lt;AS1-P6-16-HW&gt;quit</span>'}, {wait:700},
+
+    {chap:3},
+    {line:''}, {line:'<span class="ok">✓ 报告生成完成 ...</span>'}, {wait:400},
+    {report:1}, {wait:300},
+    {line:''}, {type:'', pre:PR, per:60}
+  ];
+
+  function renderStepInstant(s){
+    if('chap' in s){ setChap(s.chap); return; }
+    if('wait' in s) return;
+    if('type' in s){ addLine((s.pre||'')+'<span'+(s.cls?' class="'+s.cls+'"':'')+'>'+s.type+'</span>', ''); return; }
+    if('panel' in s){ addLine(devicePanel()); return; }
+    if('report' in s){ addLine(reportCard()); return; }
+    if('line' in s){ addLine(s.line); return; }
+  }
+
+  async function play(){
+    var my=++runId; thisRun=my; skip=false; paused=false;
+    document.getElementById('pause').textContent='⏸ 暂停';
+    clear();
+    for(var i=0;i<SEQ.length;i++){
+      var s=SEQ[i];
+      if(my!==runId) return;
+      if(skip){ for(var j=i;j<SEQ.length;j++) renderStepInstant(SEQ[j]); bottom(); return; }
+      if('chap' in s){ setChap(s.chap); continue; }
+      if('wait' in s){ await sleep(s.wait); continue; }
+      if('type' in s){ await typeLine(s.pre||'', s.type, s.cls, s.per); continue; }
+      if('panel' in s){ addLine(devicePanel()); continue; }
+      if('report' in s){
+        var rep=addLine(reportCard());
+        rep.style.opacity=0; rep.style.transform='translateY(14px)';
+        rep.style.transition='opacity .6s, transform .6s'; bottom();
+        await sleep(40); rep.style.opacity=1; rep.style.transform='none'; bottom();
+        continue;
+      }
+      if('line' in s){ addLine(s.line); continue; }
+    }
+  }
+
+  // ---- controls ----
+  document.getElementById('replay').onclick=function(){play();};
+  document.getElementById('pause').onclick=function(){
+    paused=!paused; this.textContent=paused?'▶ 继续':'⏸ 暂停';
+  };
+  document.getElementById('skip').onclick=function(){
+    // synchronously jump to final state — robust regardless of rAF throttling
+    runId++; clear(); SEQ.forEach(renderStepInstant); bottom();
+    paused=false; document.getElementById('pause').textContent='⏸ 暂停';
+  };
+  document.getElementById('speed').addEventListener('click',function(e){
+    var b=e.target.closest('button'); if(!b)return;
+    speed=+b.dataset.s;
+    this.querySelectorAll('button').forEach(function(x){x.classList.toggle('on',x===b);});
+  });
+
+  play();
+})();
+</script>
+</body>
+</html>
